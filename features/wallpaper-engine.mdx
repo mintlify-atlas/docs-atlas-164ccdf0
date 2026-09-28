@@ -1,32 +1,18 @@
 ---
 title: "Wallpaper Engine — Community Animated Wallpapers"
 sidebarTitle: "Wallpaper Engine"
-description: "Browse, submit, and apply community 4K static or live animated wallpapers. Submissions require admin approval before appearing in the public Nexxus store."
+description: "Browse, submit, and apply community static or live animated wallpapers. Submissions require admin approval before appearing in the public Nexxus store."
 ---
 
-The Nexxus Wallpaper Engine is a community-driven wallpaper store built into the platform. Users can discover and apply high-quality static 4K images or live animated wallpapers (powered by WebGL shaders and other live engines) — and contribute their own creations for the community to enjoy.
+The Nexxus Wallpaper Engine is a community-driven wallpaper store built into the platform. Users can discover and apply high-quality static images or live animated wallpapers — and contribute their own creations for the community to enjoy.
 
 ## WallpaperItem Type
 
-Every wallpaper in the store is represented by a `WallpaperItem` object:
+Every wallpaper in the store is represented by a `WallpaperItem` object. This type is imported from `src/types.ts` and used by the `AdminConsole` component to manage the moderation queue.
 
-```typescript
-interface WallpaperItem {
-  id: string;
-  title: string;
-  description?: string;
-  thumbnailUrl: string;
-  author: string;
-  type: 'static' | 'live';
-  liveEngine?: string; // e.g. 'shader'
-  category: string;
-  status: 'pending' | 'approved' | 'rejected';
-  rejectReason?: string;
-  reviewer?: string;
-  submittedAt: number;
-  likes: number;
-}
-```
+<Warning>
+  `WallpaperItem` is referenced by `AdminConsole.tsx` via an import from `src/types.ts`, but is not currently defined in that file. The Wallpaper Engine feature is under active development. The fields described below reflect the shape used in the admin UI code.
+</Warning>
 
 | Field | Description |
 |---|---|
@@ -35,7 +21,7 @@ interface WallpaperItem {
 | `description` | Optional artist description or notes |
 | `thumbnailUrl` | Preview image URL shown in the store grid |
 | `author` | Username of the community member who submitted it |
-| `type` | `"static"` for 4K images or `"live"` for animated wallpapers |
+| `type` | `"static"` for images or `"live"` for animated wallpapers |
 | `liveEngine` | Engine used for live wallpapers (e.g. `"shader"` for WebGL) |
 | `category` | Genre or style tag (e.g. `"nature"`, `"abstract"`, `"cyberpunk"`) |
 | `status` | Moderation status: `"pending"`, `"approved"`, or `"rejected"` |
@@ -50,7 +36,7 @@ interface WallpaperItem {
 
 <CardGroup cols={2}>
   <Card title="Static Wallpapers" icon="image">
-    Full-resolution 4K images that replace the platform background. Supports any photographic or illustrated art style. Fast to load and lightweight.
+    Full-resolution images that replace the platform background. Supports any photographic or illustrated art style. Fast to load and lightweight.
   </Card>
   <Card title="Live Wallpapers" icon="wand-magic-sparkles">
     Animated wallpapers powered by a live engine. The `liveEngine` field specifies the renderer — currently `"shader"` (WebGL fragment shader) is supported, enabling real-time visual effects.
@@ -68,13 +54,13 @@ Community members can submit wallpapers for consideration. All submissions go th
     Open the Wallpaper Engine tab and click the **Submit Wallpaper** button. Fill in the title, description, category, type, and upload your asset or provide a URL.
   </Step>
   <Step title="Submission enters Pending status">
-    The new `WallpaperItem` is created with `status: "pending"`. It is **not visible** in the public store at this point — only admins can see it in the moderation queue.
+    The new wallpaper item is created with `status: "pending"`. It is **not visible** in the public store at this point — only admins can see it in the moderation queue.
   </Step>
   <Step title="Admin reviews the submission">
     An admin opens the **Visitor Intelligence Console** (keyboard shortcut `Shift + O`) and navigates to the **Wallpaper Approvals** tab to view all pending submissions.
   </Step>
   <Step title="Admin approves or rejects">
-    The admin calls the moderation endpoint with their decision:
+    The admin uses the moderation controls in the console to approve or reject the wallpaper:
 
     - **Approve** → `status` becomes `"approved"`, wallpaper appears in the public store immediately.
     - **Reject** → `status` becomes `"rejected"`, `rejectReason` and `reviewer` are recorded.
@@ -99,7 +85,11 @@ Community members can submit wallpapers for consideration. All submissions go th
 
 ## Admin API Endpoints
 
-The Visitor Intelligence Console communicates with the following endpoints to manage wallpapers:
+The Visitor Intelligence Console communicates with the following backend endpoints to manage wallpapers. These endpoints are called from `AdminConsole.tsx` but are **not yet implemented in `server.ts`** — they are placeholders for the wallpaper backend, which is under active development.
+
+<Warning>
+  The wallpaper API endpoints listed below (`/api/wallpapers/admin`, `/api/wallpapers/{id}/moderate`, `DELETE /api/wallpapers/{id}`) are consumed by the frontend admin console but have no corresponding route handlers in the current `server.ts`. Requests to these endpoints will return 404 until the backend implementation is added.
+</Warning>
 
 ### Fetch All Wallpapers
 
@@ -119,7 +109,7 @@ POST /api/wallpapers/{id}/moderate
 
 ```json
 {
-  "status": "approved" | "rejected",
+  "status": "approved | rejected",
   "reviewer": "admin-username",
   "reason": "Optional rejection reason"
 }
@@ -146,7 +136,7 @@ Permanently removes a wallpaper from the database regardless of its current stat
 <CardGroup cols={2}>
   <Card title="Accepted" icon="circle-check">
     - Original or properly licensed artwork
-    - 4K resolution (3840×2160) or higher for static wallpapers
+    - High resolution images for static wallpapers
     - Clean, non-offensive content appropriate for a school setting
     - WebGL shaders with reasonable GPU load
   </Card>
@@ -159,5 +149,5 @@ Permanently removes a wallpaper from the database regardless of its current stat
 </CardGroup>
 
 <Tip>
-  For the best results with static submissions, export your image as a high-quality JPEG or lossless WebP at 3840×2160. Thumbnails are automatically generated — you only need to supply the full-resolution asset.
+  For the best results with static submissions, export your image as a high-quality JPEG or lossless WebP. Thumbnails are automatically generated — you only need to supply the full-resolution asset.
 </Tip>

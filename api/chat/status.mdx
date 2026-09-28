@@ -8,7 +8,7 @@ The `GET /api/chat/status` endpoint returns a snapshot of the server's current G
 
 ## Endpoint
 
-```
+```http
 GET /api/chat/status
 ```
 
@@ -31,7 +31,7 @@ No request body or query parameters are required.
 </ResponseField>
 
 <ResponseField name="activeKeyMasked" type="string">
-  A partially-redacted version of the active key, showing the first six characters, an ellipsis, and the last four characters (e.g. `"AQ.Ab8...9ew"`). Safe to log or display in a UI.
+  A partially-redacted version of the active key, showing the first six characters, an ellipsis, and the last four characters (e.g. `"AQ.Ab8...M9ew"`). Safe to log or display in a UI.
 </ResponseField>
 
 <ResponseField name="fullKey" type="string">
@@ -60,7 +60,7 @@ curl https://your-nexxus-host/api/chat/status
 {
   "status": "online",
   "defaultKey": "AQ.Ab8RN6Kn1YHjueWL522fpolBogEn1sYCdY0Pzfmj0ISIIUM9ew",
-  "activeKeyMasked": "AQ.Ab8...9ew",
+  "activeKeyMasked": "AQ.Ab8...M9ew",
   "fullKey": "AQ.Ab8RN6Kn1YHjueWL522fpolBogEn1sYCdY0Pzfmj0ISIIUM9ew",
   "defaultModel": "gemini-3-flash-preview",
   "supportedModels": [

@@ -1,7 +1,7 @@
 ---
 title: "Nexxus: Self-Hosted Web OS & Unblocked Gaming Platform"
 sidebarTitle: "Introduction"
-description: "Nexxus is a self-hosted web OS and unblocked gaming platform featuring 177+ HTML5 and Flash games, Gemini AI chat, a class schedule tracker, and real-time visitor telemetry."
+description: "Nexxus is a self-hosted web OS and gaming platform with 177 HTML5 and Flash games, Gemini AI chat, a class schedule tracker, and visitor telemetry."
 ---
 
 Nexxus is a self-hosted web operating system and unblocked gaming platform built for environments where access to games and tools is restricted. Rendered entirely in a striking black-and-white monochrome aesthetic — pure `bg-black` canvas, `text-zinc-100` typography, crisp `border-zinc-800` dividers, and white-on-black selection highlights — it delivers a focused, distraction-free interface that feels more like a terminal dashboard than a typical game portal. This page covers the platform's architecture, its five major subsystems, key technical facts, and the keyboard shortcuts that power-users need to know.
@@ -10,7 +10,7 @@ Nexxus is a self-hosted web operating system and unblocked gaming platform built
 
 Nexxus is a full-stack TypeScript application. The **backend** is an Express + Node.js server (`server.ts`) that handles game asset proxying, Gemini AI chat, and visitor telemetry. The **frontend** is a React 19 single-page application (SPA) written in TypeScript, bundled by **Vite 8** with the `@vitejs/plugin-react` plugin and styled using **Tailwind CSS v4**. In development, Express delegates all SPA requests to Vite's middleware. In production, Express serves the pre-built `dist/` folder as static files and falls back to `index.html` for client-side routing.
 
-```
+```text
 Browser ──► Express (server.ts :3000)
                │
                ├─ /api/chat          ──► Google Gemini AI (@google/genai)
@@ -51,8 +51,8 @@ The top navigation bar exposes three primary tabs that switch the main content a
   <Card title="Schedule Tracker" icon="calendar">
     A persistent class schedule builder stored in `localStorage`. Each entry holds a class name, start/end times (24-hour format), active days of the week, teacher name, room number, an optional color token, and free-form notes. A live "current period" indicator highlights the active class in real time.
   </Card>
-  <Card title="Wallpaper Engine" icon="image">
-    A community-driven wallpaper system integrated into the web OS layer. Users can submit, browse, and apply dynamic or static wallpapers that theme the entire platform. Wallpaper generation leverages Gemini AI for AI-assisted community content.
+  <Card title="Wallpaper Moderation" icon="image">
+    A wallpaper moderation queue accessible from within the Admin Console (Shift+O → Wallpapers tab). Submitted community wallpapers appear in a pending queue where an admin can approve and publish them to the public Wallpaper Store, or reject them. Actions call `/api/wallpapers/:id/moderate`.
   </Card>
   <Card title="Visitor Telemetry Console" icon="terminal">
     A real-time admin dashboard (opened with **Shift+O**) that displays all visitor sessions tracked by the `/api/telemetry/*` endpoints. Admins can see IP addresses, browsers, OS, current game, session duration, and online/offline status — and can silently kick individual visitors or all visitors back to the home page.

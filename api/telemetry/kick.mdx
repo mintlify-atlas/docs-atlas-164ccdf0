@@ -1,7 +1,7 @@
 ---
 title: "POST /api/telemetry/kick — Redirect Active Visitors"
 sidebarTitle: "Kick"
-description: "Silently redirect one visitor, all visitors from an IP, or every online visitor back to the home page. The kick is detected on the visitor's next heartbeat within 2.5 seconds."
+description: "Silently redirect one visitor, all visitors from an IP, or every online visitor. The kick is picked up on the next heartbeat within 2.5 seconds."
 ---
 
 `POST /api/telemetry/kick` lets an admin silently redirect active visitors away from their current game without showing any alert, banner, or notification. The kick is communicated via the heartbeat mechanism: when the server receives the kick command it sets `session.kicked = true` on the targeted sessions, and the next heartbeat response those sessions receive will carry `"kicked": true`. The Nexxus client SDK then calls any registered `onKick` callbacks and dispatches a `nexxus:silent-kick` `CustomEvent` on `window`, which the application handles by navigating the visitor to the home page.
@@ -84,7 +84,7 @@ The `kicked` flag is then cleared **atomically on the next heartbeat** from that
 ```bash
 curl -X POST http://localhost:3000/api/telemetry/kick \
   -H "Content-Type: application/json" \
-  -d '{ "id": "sess_1703000000000_abc123" }'
+  -d '{ "id": "session_1703000000000_abc12345" }'
 ```
 
 **Response:**

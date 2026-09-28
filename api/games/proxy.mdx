@@ -8,7 +8,7 @@ The `/games/*` proxy route makes every game in the [MonkeyGG2 GitLab repository]
 
 ## Endpoint
 
-```
+```http
 GET /games/{subpath}
 ```
 
@@ -27,7 +27,7 @@ GET /games/{subpath}
    - **Cache miss** — Continue to step 5.
 
 5. **GitLab fetch** — The server requests the asset from:
-   ```
+   ```text
    https://gitlab.com/barryjensen-dev/monkeygg2/-/raw/main/games/{normalized_path}
    ```
    If GitLab returns a non-2xx status, the proxy responds with the same HTTP status code and the message `"Failed to load asset from GitLab ({status})"`.
@@ -84,7 +84,7 @@ The server maps file extensions to MIME types using a static lookup table. Any e
 
 ### HTML5 game — directory index
 
-```
+```http
 GET /games/1v1-lol/
 ```
 
@@ -96,7 +96,7 @@ curl https://your-nexxus-host/games/1v1-lol/
 
 ### HTML5 game — named asset
 
-```
+```http
 GET /games/1v1-lol/logo.png
 ```
 
@@ -108,7 +108,7 @@ curl -o logo.png https://your-nexxus-host/games/1v1-lol/logo.png
 
 ### Flash game page
 
-```
+```http
 GET /games/flash/?game=achievement-unlocked
 ```
 
@@ -120,13 +120,13 @@ curl "https://your-nexxus-host/games/flash/?game=achievement-unlocked"
 
 ### Redirect example
 
-```
+```http
 GET /games/1v1-lol
 ```
 
 Because `1v1-lol` has no file extension and no trailing slash, the server responds:
 
-```
+```http
 HTTP/1.1 301 Moved Permanently
 Location: /games/1v1-lol/
 ```
@@ -135,7 +135,7 @@ Location: /games/1v1-lol/
 
 If the asset does not exist in the GitLab repository:
 
-```
+```http
 HTTP/1.1 404 Not Found
 
 Failed to load asset from GitLab (404)

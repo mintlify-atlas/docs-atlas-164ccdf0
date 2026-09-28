@@ -1,13 +1,13 @@
 ---
-title: "Quickstart: Run Nexxus Locally in Under 5 Minutes"
+title: "Quickstart: Run Nexxus Locally in Under Five Minutes"
 sidebarTitle: "Quickstart"
-description: "Step-by-step guide to cloning, configuring, and launching the Nexxus gaming platform locally — from Node.js prerequisites through your first browser session."
+description: "Clone, configure, and launch Nexxus locally in minutes — covers Node.js prerequisites, environment variables, the dev server, and the production build."
 ---
 
 Nexxus ships as a single TypeScript monorepo with an Express backend and a React 19 frontend. This page walks you through every step needed to get the development server running on your machine — from checking prerequisites and cloning the repo, through setting up environment variables and starting the server, to understanding the production build pipeline.
 
 <Note>
-  The AI Chat and community Wallpaper Engine features both require a valid `GEMINI_API_KEY`. Without it, the `/api/chat` endpoint will fall back to the built-in default key, which may be rate-limited. Obtaining your own key is strongly recommended for any sustained use.
+  The AI Chat feature requires a valid `GEMINI_API_KEY`. Without it, the `/api/chat` endpoint will fall back to the built-in default key, which may be rate-limited. Obtaining your own key is strongly recommended for any sustained use.
 </Note>
 
 ## Setup
@@ -22,7 +22,7 @@ Nexxus ships as a single TypeScript monorepo with an Express backend and a React
     # Should print v18.x.x or higher
     ```
 
-    You will also need a **Gemini API key** to unlock the AI Chat and Wallpaper Engine. Get one for free at [Google AI Studio](https://aistudio.google.com/app/apikey) — no billing required for the free tier.
+    You will also need a **Gemini API key** to unlock the AI Chat tab. Get one for free at [Google AI Studio](https://aistudio.google.com/app/apikey) — no billing required for the free tier.
   </Step>
 
   <Step title="Clone the Repository">
@@ -73,8 +73,12 @@ Nexxus ships as a single TypeScript monorepo with an Express backend and a React
     `PORT` and `NODE_ENV` are optional during local development — the server defaults to port `3000` and automatically uses Vite's dev middleware when `NODE_ENV` is not set to `production`.
 
     <Tip>
-      Leave `NODE_ENV` unset (or set it to `development`) while working locally. The server detects the absence of a `dist/index.html` file and activates Vite middleware automatically, giving you hot module replacement for the frontend.
+      Leave `NODE_ENV` unset (or set it to `development`) while working locally. The server detects the absence of a `dist/index.html` file and activates Vite middleware automatically for the frontend. Note that HMR (hot module replacement) is disabled in `vite.config.ts` (`hmr: false`) — save and refresh the browser to see frontend changes.
     </Tip>
+
+    <Note>
+      `server.ts` does not call `dotenv` directly. In the Google AI Studio environment, secrets like `GEMINI_API_KEY` are injected automatically at runtime. For local development, export the variables in your shell before running the server (e.g. `export GEMINI_API_KEY=...`) or use a tool such as `dotenv-cli` to source your `.env` file: `dotenv -- npm run dev`.
+    </Note>
   </Step>
 
   <Step title="Start the Development Server">
@@ -83,7 +87,7 @@ Nexxus ships as a single TypeScript monorepo with an Express backend and a React
     ```
 
     Under the hood this runs `tsx server.ts`, which:
-    1. Reads your `.env` file via `dotenv`.
+    1. Reads environment variables from the process environment (populated from `.env` by your shell, IDE, or hosting platform — see the note below).
     2. Creates `.cache/games/` and loads `.cache/sessions.json` (if it exists).
     3. Registers all Express API routes (`/api/chat`, `/api/telemetry/*`, `/games/*`).
     4. Spins up a Vite dev server in middleware mode and attaches it to Express.
@@ -91,7 +95,7 @@ Nexxus ships as a single TypeScript monorepo with an Express backend and a React
 
     You should see:
 
-    ```
+    ```text
     Nexxus Server running on http://0.0.0.0:3000
     ```
   </Step>

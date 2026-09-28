@@ -1,7 +1,7 @@
 ---
 title: "POST /api/telemetry/close — Close a Visitor Session"
 sidebarTitle: "Close Session"
-description: "Mark a visitor session as closed and record its final duration. Designed to be called via navigator.sendBeacon on beforeunload and pagehide for reliable tab-close detection."
+description: "Mark a visitor session as closed and record final duration. Built for navigator.sendBeacon on beforeunload and pagehide for reliable tab-close delivery."
 ---
 
 `POST /api/telemetry/close` transitions an active session to the `closed` state, records the `closedAt` timestamp, and computes the final `durationSeconds` value. The endpoint is designed to work reliably even during page unload — the client SDK sends it via `navigator.sendBeacon`, which the browser guarantees will complete even after the page has been torn down. A plain `fetch` with `keepalive: true` is used as a fallback in environments where `sendBeacon` is unavailable.
@@ -61,7 +61,7 @@ Content-Type: application/json
 ```bash
 curl -X POST http://localhost:3000/api/telemetry/close \
   -H "Content-Type: application/json" \
-  -d '{ "id": "sess_1703000000000_abc123" }'
+  -d '{ "id": "session_1703000000000_abc12345" }'
 ```
 
 **Response:**
@@ -77,6 +77,7 @@ curl -X POST http://localhost:3000/api/telemetry/close \
 `sendBeacon` does not support setting the `Content-Type` header directly, so wrap the JSON string in a `Blob` with the correct MIME type. The browser will deliver this request in the background even after the page has been destroyed.
 
 ```javascript
+// session ID is stored in sessionStorage under the key 'nexxus_session_id'
 const sessionId = sessionStorage.getItem('nexxus_session_id');
 
 window.addEventListener('beforeunload', () => {

@@ -1,7 +1,7 @@
 ---
-title: "Telemetry API Overview — Nexxus Visitor Tracking"
+title: "Nexxus Telemetry API — Six-Endpoint Session Tracking"
 sidebarTitle: "Overview"
-description: "A reference overview of Nexxus's five-endpoint Telemetry REST API: session lifecycle, storage model, background cleanup, and the built-in TelemetryClient SDK."
+description: "Reference for the Nexxus Telemetry REST API: six endpoints covering session lifecycle, storage model, background cleanup, and the TelemetryClient SDK."
 ---
 
 The Nexxus Telemetry API is a lightweight, self-hosted visitor-tracking system built directly into the Express server. It tracks session open and close events, records periodic heartbeats to measure active duration, and gives admins the ability to silently redirect visitors away from a game. All session data is held in an in-memory `Map` for fast reads and flushed asynchronously to `.cache/sessions.json` for persistence across server restarts.

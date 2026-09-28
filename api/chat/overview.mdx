@@ -4,7 +4,7 @@ sidebarTitle: "Chat Overview"
 description: "Learn how the Nexxus Chat API connects to Google's Gemini models, handles automatic model fallback, and formats multi-turn conversations."
 ---
 
-The Nexxus Chat API is a thin, server-side proxy that forwards conversation history to Google's Gemini AI models via the `@google/genai` SDK and streams the response back to the caller. It exposes two endpoints — one for checking the current configuration and one for submitting messages — and requires no authentication from the client because the server manages its own `GEMINI_API_KEY`. Clients that need to use a different key can optionally supply one in the request body.
+The Nexxus Chat API is a thin, server-side proxy that forwards conversation history to Google's Gemini AI models via the `@google/genai` SDK and returns the completed response as a JSON object. It exposes two endpoints — one for checking the current configuration and one for submitting messages — and requires no authentication from the client because the server manages its own default Gemini API key. Clients that need to use a different key can optionally supply one in the request body.
 
 ## Endpoints at a glance
 
@@ -15,16 +15,16 @@ The Nexxus Chat API is a thin, server-side proxy that forwards conversation hist
 
 ## Authentication
 
-No API key or session token is required in request headers. The server is pre-configured with a `GEMINI_API_KEY` environment variable. If you want to use your own Gemini key — for example, to use a higher-quota project — pass it as the `apiKey` field in the `POST /api/chat` request body. The server will use your key for that request only.
+No API key or session token is required in request headers. The server ships with a built-in default Gemini API key compiled directly into `server.ts`. If you want to use your own Gemini key — for example, to use a higher-quota project — pass it as the `apiKey` field in the `POST /api/chat` request body. The server will use your key for that request only and fall back to the default key when none is supplied.
 
 ## Message format
 
-Every message in the conversation history must follow the `@google/genai` content format:
+Each message in the conversation history is a plain object with two fields: `role` and `content`. The server internally converts this format to the `@google/genai` SDK's `parts` structure before forwarding the request to Gemini.
 
 ```json
 {
   "role": "user",
-  "parts": [{ "text": "Your message here" }]
+  "content": "Your message here"
 }
 ```
 

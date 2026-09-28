@@ -1,7 +1,7 @@
 ---
-title: "Self-Hosting Nexxus on Your Own Server"
+title: "Nexxus Self-Hosting Guide: Deploy on Your Own Server"
 sidebarTitle: "Self-Hosting"
-description: "Deploy Nexxus on your own infrastructure with Node.js or Bun. Covers cloning, dependencies, environment setup, production build, and server startup."
+description: "Deploy Nexxus on your own machine or VPS with Node.js. Covers cloning, installing dependencies, environment setup, building, and starting the server."
 ---
 
 Nexxus is fully self-hostable — you run the Express backend and the React SPA on your own machine or VPS without any external platform dependency. The only external service required for AI features is a Gemini API key from Google AI Studio.
@@ -37,14 +37,6 @@ Before you begin, make sure your system has the following:
     npm install
     ```
 
-    ```bash yarn
-    yarn install
-    ```
-
-    ```bash pnpm
-    pnpm install
-    ```
-
     ```bash bun
     bun install
     ```
@@ -58,16 +50,14 @@ Before you begin, make sure your system has the following:
   cp .env.example .env
   ```
 
-  Then open `.env` in your editor and set the variables:
+  Then open `.env` in your editor. The two keys from `.env.example` are:
 
   ```env
   GEMINI_API_KEY=your_api_key_here
   APP_URL=https://nexxus.example.com
-  PORT=3000
-  NODE_ENV=production
   ```
 
-  See the [Environment Variables](/deployment/environment-variables) reference for a full description of each variable.
+  You can also set the optional server variables `PORT` (default `3000`) and `NODE_ENV=production` directly in `.env` or via your hosting environment. See the [Environment Variables](/deployment/environment-variables) reference for full details.
 
   ### Build for production
 
@@ -76,14 +66,6 @@ Before you begin, make sure your system has the following:
   <CodeGroup>
     ```bash npm
     npm run build
-    ```
-
-    ```bash yarn
-    yarn build
-    ```
-
-    ```bash pnpm
-    pnpm run build
     ```
 
     ```bash bun
@@ -102,12 +84,8 @@ Before you begin, make sure your system has the following:
     npm start
     ```
 
-    ```bash yarn
-    yarn start
-    ```
-
-    ```bash pnpm
-    pnpm start
+    ```bash node
+    node dist/server.cjs
     ```
 
     ```bash bun

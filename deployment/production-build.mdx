@@ -1,7 +1,7 @@
 ---
-title: "Nexxus Production Build Pipeline Explained"
+title: "Nexxus Production Build: Pipeline, Output, and Scripts"
 sidebarTitle: "Production Build"
-description: "Understand the Nexxus two-step build pipeline: Vite bundles the React SPA and esbuild compiles the Express server into a single deployable dist/ folder."
+description: "Nexxus two-step build pipeline: Vite bundles the React SPA and esbuild compiles the Express server into a single deployable dist/ folder."
 ---
 
 The Nexxus build pipeline compiles both the React frontend and the Express backend into a single `dist/` directory. Running `npm start` against that directory is all that is needed to serve the entire platform in production.
@@ -11,14 +11,6 @@ The Nexxus build pipeline compiles both the React frontend and the Express backe
 <CodeGroup>
   ```bash npm
   npm run build
-  ```
-
-  ```bash yarn
-  yarn build
-  ```
-
-  ```bash pnpm
-  pnpm run build
   ```
 
   ```bash bun
@@ -126,6 +118,18 @@ The server serves the compiled SPA from `dist/`, handles the telemetry API (`/ap
 
 ---
 
+## Previewing the Build Locally
+
+After building, you can preview the Vite-compiled SPA without starting the full Express server:
+
+```bash
+npm run preview
+```
+
+This runs `vite preview`, which serves the `dist/` assets through Vite's built-in preview server. It is useful for quickly verifying that the frontend bundle renders correctly, but it does not include the Express API routes. Use `node dist/server.cjs` for a full end-to-end preview.
+
+---
+
 ## TypeScript Type Checking
 
 The build scripts do **not** run the TypeScript compiler — esbuild strips types without checking them. Run the dedicated lint script to catch type errors before deploying:
@@ -156,32 +160,29 @@ Understanding which packages are needed at runtime (and must be present in `node
 
 <CardGroup cols={2}>
   <Card title="Runtime Dependencies" icon="server">
-    Present in `dependencies` in `package.json` — required when running `node dist/server.cjs`:
+    Present in `dependencies` in `package.json` — required when running `node dist/server.cjs` or installing with `npm install --omit=dev`:
 
     - `express` — HTTP server framework
     - `@google/genai` — Gemini AI SDK
-    - `react` / `react-dom` — Bundled into `dist/assets/` by Vite; **not** needed on the server at runtime
-    - `motion` — Framer Motion animations (bundled by Vite)
-    - `lucide-react` — Icon library (bundled by Vite)
     - `dotenv` — Loads `.env` file at server startup
-
-    Because esbuild uses `--packages=external`, all `dependencies` must exist in `node_modules` on the host. Run `npm install --omit=dev` on the production machine (or use your deployment platform's install step).
+    - `react` / `react-dom` — Bundled into `dist/assets/` by Vite; **not** required on the server at runtime but listed under `dependencies`
+    - `vite` / `@vitejs/plugin-react` / `@tailwindcss/vite` — Listed under `dependencies` (not `devDependencies`); used during `npm run build`
+    - `motion` — Framer Motion animations (bundled by Vite into the SPA)
+    - `lucide-react` — Icon library (bundled by Vite into the SPA)
   </Card>
 
   <Card title="Build-Only DevDependencies" icon="wrench">
-    Present in `devDependencies` — only needed to compile; not required at runtime:
+    Present in `devDependencies` — only needed to compile or type-check; not required at runtime:
 
-    - `vite` — SPA bundler
-    - `@vitejs/plugin-react` — Vite React plugin
-    - `@tailwindcss/vite` — Tailwind CSS Vite plugin
-    - `esbuild` — Server bundler
+    - `esbuild` — Server bundler (`npm run build`)
     - `tsx` — TypeScript runner used by `npm run dev`
     - `typescript` — Type checker (`npm run lint`)
-    - `tailwindcss` / `autoprefixer` — CSS tooling
-    - `@types/*` — TypeScript declaration files
+    - `tailwindcss` — Tailwind CSS engine (consumed by `@tailwindcss/vite` at build time)
+    - `autoprefixer` — CSS vendor prefixing (build time only)
+    - `@types/node` / `@types/react` / `@types/react-dom` / `@types/express` — TypeScript declaration files
   </Card>
 </CardGroup>
 
 <Info>
-  On a production server where you only run `node dist/server.cjs`, you can install without devDependencies to keep the footprint small: `npm install --omit=dev`. The build itself must happen somewhere that has the full install.
+  On a production server where you only run `node dist/server.cjs`, you can skip devDependencies to keep the footprint small: `npm install --omit=dev`. The build itself must happen somewhere that has the full install (all `dependencies` and `devDependencies`).
 </Info>

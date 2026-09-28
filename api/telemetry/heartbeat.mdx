@@ -1,7 +1,7 @@
 ---
 title: "POST /api/telemetry/heartbeat — Update Session Activity"
 sidebarTitle: "Heartbeat"
-description: "Keep a session alive, update the visitor's current activity string, and check whether an admin kick is pending. Called automatically every 2.5 seconds by the client SDK."
+description: "Keep a session alive, update the current activity string, and poll for a pending admin kick. The client SDK calls this endpoint every 2.5 seconds."
 ---
 
 `POST /api/telemetry/heartbeat` serves two purposes simultaneously: it refreshes the session's `lastHeartbeat` timestamp to keep it from being auto-closed by the background cleanup job, and it returns a `kicked` flag that tells the client whether an admin has issued a kick command. The Nexxus client SDK fires this request every **2.5 seconds** to ensure kick signals are delivered within a predictable, short window.
@@ -105,7 +105,7 @@ Content-Type: application/json
 curl -X POST http://localhost:3000/api/telemetry/heartbeat \
   -H "Content-Type: application/json" \
   -d '{
-    "id": "sess_1703000000000_abc123",
+    "id": "session_1703000000000_abc12345",
     "currentGame": "Playing 1v1.LOL"
   }'
 ```
@@ -126,7 +126,7 @@ curl -X POST http://localhost:3000/api/telemetry/heartbeat \
 curl -X POST http://localhost:3000/api/telemetry/heartbeat \
   -H "Content-Type: application/json" \
   -d '{
-    "id": "sess_1703000000000_abc123",
+    "id": "session_1703000000000_abc12345",
     "currentGame": "Playing Shell Shockers"
   }'
 ```
@@ -146,7 +146,7 @@ curl -X POST http://localhost:3000/api/telemetry/heartbeat \
 ```bash
 curl -X POST http://localhost:3000/api/telemetry/heartbeat \
   -H "Content-Type: application/json" \
-  -d '{ "id": "sess_nonexistent_id" }'
+  -d '{ "id": "session_nonexistent_id" }'
 ```
 
 **Response:**

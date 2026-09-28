@@ -1,7 +1,7 @@
 ---
 title: "POST /api/telemetry/open — Register Visitor Session"
 sidebarTitle: "Open Session"
-description: "Register a new visitor session on page load. The server auto-detects IP, browser, OS, and device from request headers when fields are omitted from the body."
+description: "Register a new visitor session on page load. The server auto-detects IP, browser, OS, and device from request headers when body fields are omitted."
 ---
 
 `POST /api/telemetry/open` is the entry point for the telemetry lifecycle. The client calls it once when the page initialises to create a `VisitorSession` record in the server's in-memory store. All fields in the request body are optional — the server fills in any missing values by parsing the `User-Agent` header and resolving the client IP from `x-forwarded-for` or the raw socket address. The newly created session is immediately persisted to `.cache/sessions.json`.
@@ -22,11 +22,12 @@ Content-Type: application/json
 All parameters are optional. Omitting a field causes the server to fall back to its own detection logic.
 
 <ParamField body="id" type="string">
-  A custom session identifier. If omitted, the server generates one in the
-  format `sess_{timestamp}_{random}` — for example `sess_1703000000000_abc123`.
-  Providing a stable ID (e.g. sourced from `sessionStorage`) lets the same
-  logical session survive a full page refresh without creating a duplicate
-  record.
+  A custom session identifier. When provided by the Nexxus client SDK it uses
+  the format `session_{timestamp}_{random}` — for example
+  `session_1703000000000_abc12345`. If omitted entirely, the server generates
+  a fallback ID in the format `sess_{timestamp}_{random}`. Providing a stable
+  ID (e.g. sourced from `sessionStorage`) lets the same logical session
+  survive a full page refresh without creating a duplicate record.
 </ParamField>
 
 <ParamField body="deviceName" type="string">
@@ -74,7 +75,7 @@ All parameters are optional. Omitting a field causes the server to fall back to 
 ```json
 {
   "success": true,
-  "sessionId": "sess_1703000000000_abc123"
+  "sessionId": "session_1703000000000_abc12345"
 }
 ```
 
@@ -109,13 +110,13 @@ All parameters are optional. Omitting a field causes the server to fall back to 
 curl -X POST http://localhost:3000/api/telemetry/open \
   -H "Content-Type: application/json" \
   -d '{
-    "id": "sess_1703000000000_abc123",
+    "id": "session_1703000000000_abc12345",
     "deviceName": "Windows PC",
     "browser": "Chrome 124",
     "os": "Windows 11 / 10",
     "screen": "1920x1080",
     "language": "en-US",
-    "currentGame": "Viewing Library"
+    "currentGame": "Browsing Library"
   }'
 ```
 
@@ -124,7 +125,7 @@ curl -X POST http://localhost:3000/api/telemetry/open \
 ```json
 {
   "success": true,
-  "sessionId": "sess_1703000000000_abc123"
+  "sessionId": "session_1703000000000_abc12345"
 }
 ```
 

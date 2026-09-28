@@ -53,7 +53,7 @@ Every session is stored as a `VisitorSession` object, defined identically on bot
 </ResponseField>
 
 <ResponseField name="currentGame" type="string">
-  The visitor's last reported activity string, e.g. `Playing 1v1.LOL` or `Browsing Library`. Updated on every heartbeat. Defaults to `Viewing Library` when the session is first created.
+  The visitor's last reported activity string, e.g. `Playing 1v1.LOL` or `Browsing Library`. Updated on every heartbeat. The client initialises this to `Browsing Library` and sends it with the session open payload. The server-side fallback (used only if the client omits this field) is `Viewing Library`.
 </ResponseField>
 
 <ResponseField name="screen" type="string">

@@ -86,6 +86,10 @@ Each submission is displayed as a card in a two-column grid. Every card contains
 
 Each card has three action controls at the bottom, separated by a divider.
 
+<Note>
+  The wallpaper moderation API endpoints (`/api/wallpapers/admin`, `/api/wallpapers/{id}/moderate`, `DELETE /api/wallpapers/{id}`) are called by the admin console frontend but are **not included** in the core `server.ts` that ships with Nexxus. You must implement these routes in your own server layer before the moderation actions will work end-to-end. The request payloads documented below match exactly what `AdminConsole.tsx` sends.
+</Note>
+
 ### Accept & Publish
 
 Approves the wallpaper and makes it immediately available in the public Wallpaper Store.

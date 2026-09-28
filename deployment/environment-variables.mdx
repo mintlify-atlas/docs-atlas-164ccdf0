@@ -1,5 +1,5 @@
 ---
-title: "Nexxus Environment Variables Reference Guide"
+title: "Nexxus Environment Variables Reference: Full Guide"
 sidebarTitle: "Environment Variables"
 description: "Complete reference for all Nexxus environment variables: GEMINI_API_KEY, APP_URL, PORT, and NODE_ENV — with types, defaults, and usage details."
 ---
@@ -8,11 +8,17 @@ Nexxus is configured through environment variables loaded at server startup via 
 
 ## Setting Variables
 
-Create a `.env` file in the project root (the same directory as `server.ts` / `package.json`):
+Create a `.env` file in the project root (the same directory as `server.ts` / `package.json`). The `.env.example` file contains the two keys that are application-level settings:
 
 ```env .env
 GEMINI_API_KEY=your_api_key_here
 APP_URL=https://nexxus.example.com
+```
+
+The additional server-level variables `PORT` and `NODE_ENV` are not included in `.env.example` because they are commonly injected by the hosting environment rather than stored in a file. You can still set them in `.env` if needed:
+
+```env .env
+# Optional server variables
 PORT=3000
 NODE_ENV=production
 ```
@@ -53,6 +59,7 @@ NODE_ENV=production
 
   - **Default**: `3000`
   - **Override**: Useful when port 3000 is already in use, or when your infrastructure assigns a specific port.
+  - **Not in `.env.example`**: This variable is typically set by the hosting environment (e.g., Railway, Render, Fly.io assign it automatically).
 
   ```env
   PORT=8080
@@ -72,7 +79,8 @@ NODE_ENV=production
   | *(unset or any other value)* | Mounts Vite dev middleware; enables HMR and live reload |
 
   - **When to set**: Always set `NODE_ENV=production` when running a build deployed via `npm run build` + `npm start`.
-  - **Note**: The server also infers production mode automatically if `dist/index.html` exists and the process was not launched through `npm run dev`.
+  - **Not in `.env.example`**: Hosting platforms typically inject this automatically. You can also set it inline: `NODE_ENV=production node dist/server.cjs`.
+  - **Auto-detection**: The server also infers production mode automatically if `dist/index.html` exists and the process was not launched through `npm run dev`.
 
   ```env
   NODE_ENV=production
@@ -82,6 +90,8 @@ NODE_ENV=production
 ---
 
 ## Complete Sample `.env`
+
+The following shows all supported variables. Only `GEMINI_API_KEY` and `APP_URL` appear in `.env.example`; `PORT` and `NODE_ENV` are optional additions you can include when running locally or on a server where the hosting platform does not inject them:
 
 ```env .env
 # Required for Gemini AI Chat feature

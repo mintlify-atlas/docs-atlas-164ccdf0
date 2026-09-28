@@ -1,10 +1,10 @@
 ---
 title: "Nexxus Configuration: Env Variables, Paths & Session Rules"
 sidebarTitle: "Configuration"
-description: "Complete reference for Nexxus environment variables, runtime cache paths, game proxy upstream settings, and visitor session lifecycle and cleanup behaviour."
+description: "Reference for Nexxus environment variables, runtime cache paths, the GitLab game proxy upstream, and visitor session heartbeat and cleanup rules."
 ---
 
-Nexxus is configured through a combination of environment variables read at server startup and a set of well-known runtime paths that the Express server creates and manages automatically. This page covers every knob available: the four environment variables sourced from `.env`, the two disk-cache paths, the GitLab upstream URL used by the game proxy, and the session heartbeat and cleanup rules that govern the Visitor Telemetry Console.
+Nexxus is configured through a combination of environment variables read at server startup and a set of well-known runtime paths that the Express server creates and manages automatically. This page covers every knob available: the environment variables (two defined in `.env.example` plus two optional runtime overrides), the two disk-cache paths, the GitLab upstream URL used by the game proxy, and the session heartbeat and cleanup rules that govern the Visitor Telemetry Console.
 
 ## Environment Variables
 
@@ -15,7 +15,7 @@ cp .env.example .env
 ```
 
 <ParamField body="GEMINI_API_KEY" type="string" required>
-  Your Google Gemini API key. Required to enable the AI Chat tab (`/api/chat`) and the community Wallpaper Engine. Obtain a free key at [Google AI Studio](https://aistudio.google.com/app/apikey).
+  Your Google Gemini API key. Required to enable the AI Chat tab (`/api/chat`). Obtain a free key at [Google AI Studio](https://aistudio.google.com/app/apikey).
 
   The `/api/chat` endpoint passes this value directly to the `@google/genai` SDK's `GoogleGenAI` constructor. If the environment variable is absent the server falls back to a built-in default key, which may be heavily rate-limited or expire without notice.
 
@@ -53,7 +53,7 @@ cp .env.example .env
 
   | Value | Behaviour |
   |---|---|
-  | unset / `development` | Attaches Vite dev middleware; supports HMR for the React SPA |
+  | unset / `development` | Attaches Vite dev middleware for the React SPA (HMR is disabled in `vite.config.ts`; save and refresh to pick up frontend changes) |
   | `production` | Serves the pre-built `dist/` folder as static files; falls back to `dist/index.html` for all unmatched routes |
 
   ```env
@@ -100,7 +100,7 @@ Deleting this file (or calling `DELETE /api/telemetry/sessions`) clears the hist
 
 The game proxy route (`/games/*`) sources assets from the **MonkeyGG2** preservation archive on GitLab:
 
-```
+```text
 https://gitlab.com/barryjensen-dev/monkeygg2/-/raw/main/games/
 ```
 
@@ -117,7 +117,7 @@ Path traversal is prevented by running `path.normalize()` on the subpath and str
 
 CORS headers set on every proxied response allow game iframes and web workers to load cross-origin sub-resources freely:
 
-```
+```text
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: GET, OPTIONS
 Cross-Origin-Opener-Policy: same-origin-allow-popups
@@ -155,13 +155,16 @@ The server runs a **cleanup interval every 10 seconds**. Any session with `statu
 ```ts
 setInterval(() => {
   const now = Date.now();
+  let changed = false;
   for (const session of sessionsMap.values()) {
     if (session.status === 'online' && now - session.lastHeartbeat > 25000) {
       session.status = 'closed';
       session.closedAt = session.lastHeartbeat;
-      session.durationSeconds = Math.round((session.closedAt - session.openedAt) / 1000);
+      session.durationSeconds = Math.max(1, Math.round((session.closedAt - session.openedAt) / 1000));
+      changed = true;
     }
   }
+  if (changed) persistSessions();
 }, 10000);
 ```
 

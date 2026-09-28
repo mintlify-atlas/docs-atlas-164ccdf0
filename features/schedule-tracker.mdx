@@ -8,7 +8,7 @@ The Nexxus Class Schedule Tracker is a fully offline, locally-stored school bell
 
 ## ClassScheduleItem Type
 
-Each class period is described by the `ClassScheduleItem` interface:
+Each class period is described by the `ClassScheduleItem` interface, defined in `src/types.ts`:
 
 ```typescript
 export interface ClassScheduleItem {
@@ -19,7 +19,7 @@ export interface ClassScheduleItem {
   teacher?: string;
   room?: string;
   days: number[];    // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
-  color?: string;
+  color?: string;    // Hex or tailwind color token
   notes?: string;
 }
 ```
@@ -153,7 +153,7 @@ The tracker evaluates the current time every second and displays one of six live
     Use the **day pill buttons** (Sun, Mon, Tue…) in the toolbar to switch between days. Today's day is highlighted with a green dot.
   </Tab>
   <Tab title="Week View">
-    Displays a 5-column grid for Monday through Friday, plus a two-column weekend row. Each column lists all classes for that day as compact cards showing start time, title, and room. Clicking any card switches to Day View for that day.
+    Displays a 5-column grid for Monday through Friday, plus a two-column weekend row for Saturday and Sunday. Each column lists all classes for that day as compact cards showing start time, title, and room. Clicking any card switches to Day View for that day.
   </Tab>
 </Tabs>
 

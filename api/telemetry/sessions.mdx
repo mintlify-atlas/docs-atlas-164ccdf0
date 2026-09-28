@@ -1,7 +1,7 @@
 ---
 title: "GET & DELETE /api/telemetry/sessions — Session Records"
 sidebarTitle: "Sessions"
-description: "Retrieve all visitor sessions sorted newest-first with aggregate stats, or permanently clear every session record from memory and disk with a single DELETE request."
+description: "GET returns all visitor sessions newest-first with aggregate stats. DELETE permanently wipes every session record from memory and from disk instantly."
 ---
 
 This page documents two endpoints that share the `/api/telemetry/sessions` path. The `GET` method returns the full list of recorded sessions alongside aggregate statistics, and is the data source for the Nexxus admin dashboard. The `DELETE` method wipes all session data from memory and from the `.cache/sessions.json` file on disk.
@@ -28,7 +28,7 @@ No request body or query parameters are accepted.
 {
   "sessions": [
     {
-      "id": "sess_1703021893441_7gk2xp",
+      "id": "session_1703021893441_7gk2xp3f",
       "ip": "203.0.113.42",
       "device": "Windows PC",
       "browser": "Chrome 124",
@@ -58,7 +58,7 @@ No request body or query parameters are accepted.
 
   <Expandable title="VisitorSession fields">
     <ResponseField name="id" type="string">
-      Unique session identifier, e.g. `"sess_1703000000000_abc123"`.
+      Unique session identifier, e.g. `"session_1703000000000_abc12345"` (client-generated) or `"sess_1703000000000_abc123"` (server-generated fallback).
     </ResponseField>
 
     <ResponseField name="ip" type="string">
@@ -165,7 +165,7 @@ curl http://localhost:3000/api/telemetry/sessions
 {
   "sessions": [
     {
-      "id": "sess_1703021893441_7gk2xp",
+      "id": "session_1703021893441_7gk2xp3f",
       "ip": "203.0.113.42",
       "device": "Windows PC",
       "browser": "Chrome 124",
@@ -180,7 +180,7 @@ curl http://localhost:3000/api/telemetry/sessions
       "language": "en-US"
     },
     {
-      "id": "sess_1703018000000_x9m3qr",
+      "id": "session_1703018000000_x9m3qrab",
       "ip": "198.51.100.7",
       "device": "Apple iPhone",
       "browser": "Safari 17",

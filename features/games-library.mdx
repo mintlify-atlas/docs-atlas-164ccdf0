@@ -1,14 +1,14 @@
 ---
 title: "Games Library — Browse, Filter & Play Titles"
 sidebarTitle: "Games Library"
-description: "Explore the full Nexxus games library. Filter by category, sort, search by alias, manage favorites, and launch HTML5 or Flash titles in the built-in player."
+description: "Explore the full Nexxus games library. Filter by category, sort, search by title or alias, manage favorites, and launch HTML5 or Flash titles in the built-in player."
 ---
 
 The Nexxus games library is the heart of the platform — a curated archive of HTML5 and Flash titles you can browse, search, filter, sort, and launch directly in the browser without any installs or plugins.
 
 ## Game Data Model
 
-Every title in the library is described by the `Game` interface:
+Every title in the library is described by the `Game` interface, defined in `src/data/games.ts`:
 
 ```typescript
 export interface Game {
@@ -40,7 +40,7 @@ export interface Game {
 
 ### Category Filters
 
-The `CategoryFilter` type powers the category pill bar. Each filter maps to one or more raw `categories` tags on the game object:
+The `CategoryFilter` type powers the category pill bar in the filter bar. The following filters appear as clickable pills — **Favorites** and **Recent** are accessible from the Navbar shortcuts rather than the pill bar:
 
 <CardGroup cols={2}>
   <Card title="All" icon="grid-2">
@@ -48,12 +48,6 @@ The `CategoryFilter` type powers the category pill bar. Each filter maps to one 
   </Card>
   <Card title="Featured" icon="bolt">
     Games where `featured === true` — hand-picked hot picks.
-  </Card>
-  <Card title="Favorites" icon="star">
-    Games you have starred, persisted in `localStorage`.
-  </Card>
-  <Card title="Recent" icon="clock">
-    Games you have launched, ordered by last-played timestamp.
   </Card>
   <Card title="Flash Classics" icon="film">
     Titles with `type === "flash"` — retro Flash games.
@@ -80,6 +74,10 @@ The `CategoryFilter` type powers the category pill bar. Each filter maps to one 
     Matches categories: `idle`, `clicker`.
   </Card>
 </CardGroup>
+
+<Note>
+  The **Favorites** and **Recent** `CategoryFilter` values (`"favorites"` and `"recent"`) exist in the type and are activated via the Navbar — the star button for Favorites and the recent-history sort — rather than as filter bar pills.
+</Note>
 
 ### Sort Options
 
@@ -155,6 +153,8 @@ Clicking any game card opens the built-in game player — a full-width theater v
 |---|---|
 | HTML5 | `/games/{game.path}/` (trailing slash) |
 | Flash | `/games/{game.path}` (no trailing slash) |
+
+Flash game paths typically include query parameters, e.g. `flash/?game=slope-rider`, so the path is used verbatim without a trailing slash.
 
 ### Player Controls
 

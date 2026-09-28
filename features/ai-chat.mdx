@@ -16,7 +16,7 @@ All chat requests are routed through the Nexxus backend:
 
 ### Model Fallback Chain
 
-When one model is unavailable or times out, the backend automatically tries the next in sequence:
+When one model is unavailable or times out, the backend automatically tries the next in sequence. The fallback list is built by deduplicating the requested model with the following fixed candidates:
 
 1. `gemini-3-flash-preview`
 2. `gemini-3.5-flash`
@@ -34,28 +34,15 @@ Each model attempt has a **25-second timeout** before the next fallback is tried
 
 ## System Prompt
 
-The assistant always operates under the following system instruction, which shapes its tone, scope, and formatting style:
+The assistant always operates under the following system instruction, which shapes its tone, scope, and formatting style. This matches the `SYSTEM_PROMPT` constant in `src/components/NexxusChatTab.tsx`:
 
 > You are a helpful, intelligent, and friendly AI assistant. Answer questions clearly, accurately, and thoughtfully. You can assist with general knowledge, schoolwork, writing, programming, problem-solving, gaming tips, and creative ideas. Use clean markdown formatting with headers, bullet points, and code blocks where appropriate.
 
 ---
 
-## Chat Personas
-
-The `ChatPersona` type defines four available personality modes for the assistant:
-
-| Persona | Token |
-|---|---|
-| Oracle | `oracle` |
-| Cyber | `cyber` |
-| Sentinel | `sentinel` |
-| Hunter | `hunter` |
-
----
-
 ## Starter Prompts
 
-When you open a fresh chat session, four built-in starter prompts appear to help you get going quickly:
+When you open a fresh chat session, four built-in starter prompts appear to help you get going quickly. Clicking any starter prompt sends it immediately as your first message.
 
 <CardGroup cols={2}>
   <Card title="Explain a Concept" icon="lightbulb">
@@ -72,13 +59,11 @@ When you open a fresh chat session, four built-in starter prompts appear to help
   </Card>
 </CardGroup>
 
-Clicking any starter prompt sends it immediately as your first message.
-
 ---
 
 ## ChatMessage Type
 
-Every message in the conversation — both yours and the AI's — is stored as a `ChatMessage` object:
+Every message in the conversation — both yours and the AI's — is stored as a `ChatMessage` object, defined in `src/types.ts`:
 
 ```typescript
 export interface ChatMessage {
