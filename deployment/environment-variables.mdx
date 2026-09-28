@@ -1,0 +1,102 @@
+---
+title: "Nexxus Environment Variables Reference Guide"
+sidebarTitle: "Environment Variables"
+description: "Complete reference for all Nexxus environment variables: GEMINI_API_KEY, APP_URL, PORT, and NODE_ENV — with types, defaults, and usage details."
+---
+
+Nexxus is configured through environment variables loaded at server startup via `dotenv`. This page documents every supported variable, how it affects server behavior, and how to set it safely for production.
+
+## Setting Variables
+
+Create a `.env` file in the project root (the same directory as `server.ts` / `package.json`):
+
+```env .env
+GEMINI_API_KEY=your_api_key_here
+APP_URL=https://nexxus.example.com
+PORT=3000
+NODE_ENV=production
+```
+
+<Warning>
+  **Never commit your `.env` file to version control.** It is already listed in `.gitignore` by convention, but double-check before pushing. For production servers, prefer injecting secrets through your hosting provider's secrets manager, CI/CD environment configuration, or a tool like [Doppler](https://www.doppler.com) rather than a plain `.env` file on disk.
+</Warning>
+
+---
+
+## Variable Reference
+
+<ParamField path="GEMINI_API_KEY" type="string">
+  The API key used to authenticate requests to the Google Gemini API. Required for the AI Chat feature.
+
+  - **Used by**: `POST /api/chat` endpoint and the `NexxusChatTab` frontend component.
+  - **Fallback**: If this variable is not set, the server falls back to a default embedded key. Relying on the default key is not recommended for production deployments as it may be rate-limited or revoked.
+  - **Obtain your key**: Visit [Google AI Studio](https://aistudio.google.com), sign in, and create an API key under **Get API key**.
+
+  ```env
+  GEMINI_API_KEY=AIzaSy...
+  ```
+</ParamField>
+
+<ParamField path="APP_URL" type="string">
+  The fully-qualified public URL at which your Nexxus instance is accessible. Optional, but recommended for production.
+
+  - **Used for**: Self-referential links, OAuth callback URLs, and any server-side logic that needs to know the canonical origin.
+  - **Format**: Include the scheme (`https://`) and no trailing slash.
+
+  ```env
+  APP_URL=https://nexxus.example.com
+  ```
+</ParamField>
+
+<ParamField path="PORT" type="number" default="3000">
+  The TCP port the Express server binds to. The server always listens on all interfaces (`0.0.0.0`).
+
+  - **Default**: `3000`
+  - **Override**: Useful when port 3000 is already in use, or when your infrastructure assigns a specific port.
+
+  ```env
+  PORT=8080
+  ```
+
+  <Info>
+    When running behind a reverse proxy (e.g., nginx), this is an internal port. Your proxy receives traffic on 80/443 and forwards it to whichever `PORT` you choose here.
+  </Info>
+</ParamField>
+
+<ParamField path="NODE_ENV" type="string">
+  Controls whether the server runs in production mode (serving the pre-built `dist/` folder) or development mode (using Vite dev middleware for hot module replacement).
+
+  | Value | Behavior |
+  |---|---|
+  | `production` | Serves `dist/index.html` and static assets from `dist/` via `express.static` |
+  | *(unset or any other value)* | Mounts Vite dev middleware; enables HMR and live reload |
+
+  - **When to set**: Always set `NODE_ENV=production` when running a build deployed via `npm run build` + `npm start`.
+  - **Note**: The server also infers production mode automatically if `dist/index.html` exists and the process was not launched through `npm run dev`.
+
+  ```env
+  NODE_ENV=production
+  ```
+</ParamField>
+
+---
+
+## Complete Sample `.env`
+
+```env .env
+# Required for Gemini AI Chat feature
+GEMINI_API_KEY=your_api_key_here
+
+# Public URL of this Nexxus instance
+APP_URL=https://nexxus.example.com
+
+# Port for the Express server (default: 3000)
+PORT=3000
+
+# Set to 'production' to serve the built dist/ folder
+NODE_ENV=production
+```
+
+<Tip>
+  When deploying to a cloud platform (Railway, Render, Fly.io, etc.), set these variables through the platform's environment / secrets UI instead of shipping a `.env` file with your container image.
+</Tip>

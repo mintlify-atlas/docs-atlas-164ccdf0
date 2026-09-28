@@ -1,0 +1,150 @@
+---
+title: "POST /api/telemetry/kick — Redirect Active Visitors"
+sidebarTitle: "Kick"
+description: "Silently redirect one visitor, all visitors from an IP, or every online visitor back to the home page. The kick is detected on the visitor's next heartbeat within 2.5 seconds."
+---
+
+`POST /api/telemetry/kick` lets an admin silently redirect active visitors away from their current game without showing any alert, banner, or notification. The kick is communicated via the heartbeat mechanism: when the server receives the kick command it sets `session.kicked = true` on the targeted sessions, and the next heartbeat response those sessions receive will carry `"kicked": true`. The Nexxus client SDK then calls any registered `onKick` callbacks and dispatches a `nexxus:silent-kick` `CustomEvent` on `window`, which the application handles by navigating the visitor to the home page.
+
+Because the heartbeat fires every 2.5 seconds, a visitor will be redirected within approximately **2.5 seconds** of the kick being issued.
+
+The endpoint supports three mutually exclusive targeting modes — by session ID, by IP address, or by a broadcast flag that targets every online session at once.
+
+## Request
+
+```http
+POST /api/telemetry/kick
+Content-Type: application/json
+```
+
+### Body Parameters
+
+Provide exactly **one** of the three targeting parameters. If multiple are supplied, `all` takes priority, then `id`, then `ip`.
+
+<ParamField body="id" type="string">
+  Kick a single specific session by its session ID. Only affects that one
+  session regardless of its current status — if the session is already
+  `closed`, the kick is stored but will never be delivered.
+</ParamField>
+
+<ParamField body="ip" type="string">
+  Kick all **online** sessions whose recorded IP address exactly matches this
+  value. Sessions already in the `closed` state are skipped. Use this to
+  remove a visitor who has multiple open tabs.
+</ParamField>
+
+<ParamField body="all" type="boolean">
+  When `true`, kick every session currently in the `"online"` state. Offline
+  and closed sessions are not affected.
+</ParamField>
+
+## Response
+
+### 200 OK
+
+```json
+{
+  "success": true,
+  "kickedCount": 2
+}
+```
+
+<ResponseField name="success" type="boolean">
+  Always `true`, even if `kickedCount` is `0` (e.g. no online sessions matched
+  the target).
+</ResponseField>
+
+<ResponseField name="kickedCount" type="number">
+  The number of sessions that had their `kicked` flag set as a result of this
+  request. A value of `0` means no matching online sessions were found.
+</ResponseField>
+
+### 500 Internal Server Error
+
+```json
+{
+  "error": "Unexpected error message"
+}
+```
+
+## What Happens on the Server
+
+When a session is kicked the server immediately:
+
+1. Sets `session.kicked = true`.
+2. Resets `session.currentGame` to `"Viewing Library"`.
+3. Calls `persistSessions()` to write the updated state to disk.
+
+The `kicked` flag is then cleared **atomically on the next heartbeat** from that session — the heartbeat handler reads `wasKicked`, sets `session.kicked = false`, resets `currentGame`, and includes `"kicked": true` in the response. This guarantees the kick signal is delivered exactly once per kick command.
+
+## Examples
+
+### Kick a single session by ID
+
+```bash
+curl -X POST http://localhost:3000/api/telemetry/kick \
+  -H "Content-Type: application/json" \
+  -d '{ "id": "sess_1703000000000_abc123" }'
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "kickedCount": 1
+}
+```
+
+### Kick all sessions from a specific IP address
+
+```bash
+curl -X POST http://localhost:3000/api/telemetry/kick \
+  -H "Content-Type: application/json" \
+  -d '{ "ip": "203.0.113.42" }'
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "kickedCount": 3
+}
+```
+
+### Kick every currently online visitor
+
+```bash
+curl -X POST http://localhost:3000/api/telemetry/kick \
+  -H "Content-Type: application/json" \
+  -d '{ "all": true }'
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "kickedCount": 11
+}
+```
+
+<Tip>
+  **When to use IP-based kicking vs. session-ID kicking:**
+
+  Use **IP-based kicking** (`ip`) when you want to remove all tabs belonging to
+  a specific visitor. A single visitor can have multiple active sessions if they
+  have the site open in several browser tabs or windows — kicking by IP address
+  targets all of them in one call without having to enumerate individual session
+  IDs.
+
+  Use **session-ID kicking** (`id`) for surgical precision: for example, if two
+  visitors happen to share a NAT IP (common in schools or offices) and you only
+  want to redirect one of them, kick by session ID to avoid disrupting the
+  other person's session.
+
+  Use **broadcast kicking** (`all: true`) for site-wide actions such as
+  scheduled maintenance, unexpected downtime, or clearing all active game
+  sessions at the end of a school period.
+</Tip>

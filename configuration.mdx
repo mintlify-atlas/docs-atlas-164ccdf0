@@ -1,0 +1,177 @@
+---
+title: "Nexxus Configuration: Env Variables, Paths & Session Rules"
+sidebarTitle: "Configuration"
+description: "Complete reference for Nexxus environment variables, runtime cache paths, game proxy upstream settings, and visitor session lifecycle and cleanup behaviour."
+---
+
+Nexxus is configured through a combination of environment variables read at server startup and a set of well-known runtime paths that the Express server creates and manages automatically. This page covers every knob available: the four environment variables sourced from `.env`, the two disk-cache paths, the GitLab upstream URL used by the game proxy, and the session heartbeat and cleanup rules that govern the Visitor Telemetry Console.
+
+## Environment Variables
+
+Copy `.env.example` to `.env` at the project root before starting the server. All variables are read by `dotenv` at the top of `server.ts`.
+
+```bash
+cp .env.example .env
+```
+
+<ParamField body="GEMINI_API_KEY" type="string" required>
+  Your Google Gemini API key. Required to enable the AI Chat tab (`/api/chat`) and the community Wallpaper Engine. Obtain a free key at [Google AI Studio](https://aistudio.google.com/app/apikey).
+
+  The `/api/chat` endpoint passes this value directly to the `@google/genai` SDK's `GoogleGenAI` constructor. If the environment variable is absent the server falls back to a built-in default key, which may be heavily rate-limited or expire without notice.
+
+  ```env
+  GEMINI_API_KEY="AIza..."
+  ```
+</ParamField>
+
+<ParamField body="APP_URL" type="string">
+  The full public URL where Nexxus is hosted, including the protocol and (if non-standard) the port. Used for self-referential links, OAuth callbacks, and any internal API endpoint references that need an absolute base URL.
+
+  ```env
+  APP_URL="https://nexxus.example.com"
+  # or for local dev:
+  APP_URL="http://localhost:3000"
+  ```
+</ParamField>
+
+<ParamField body="PORT" type="number">
+  The TCP port the Express server binds to. Defaults to `3000` when not set. The server always binds to `0.0.0.0` (all interfaces), so it is reachable from any network interface on the host.
+
+  ```env
+  PORT=8080
+  ```
+
+  You can also pass it inline without editing `.env`:
+
+  ```bash
+  PORT=8080 npm run dev
+  ```
+</ParamField>
+
+<ParamField body="NODE_ENV" type="string">
+  Controls whether Express runs in development or production mode.
+
+  | Value | Behaviour |
+  |---|---|
+  | unset / `development` | Attaches Vite dev middleware; supports HMR for the React SPA |
+  | `production` | Serves the pre-built `dist/` folder as static files; falls back to `dist/index.html` for all unmatched routes |
+
+  ```env
+  NODE_ENV=production
+  ```
+
+  <Warning>
+    Do not set `NODE_ENV=production` during local development unless you have already run `npm run build`. Without a `dist/index.html` present the server will still start, but all frontend routes will return a 404.
+  </Warning>
+</ParamField>
+
+## Runtime Cache Paths
+
+Nexxus creates two paths under `.cache/` in the project root at server startup. Both are created automatically with `fs.mkdirSync({ recursive: true })` — you do not need to create them manually.
+
+### `.cache/games/`
+
+The disk cache for all proxied game assets fetched from the GitLab upstream. When a browser requests `/games/<subpath>`, the server:
+
+1. Checks whether the file already exists at `.cache/games/<subpath>`.
+2. If found, streams the cached file directly with `Content-Type` and `Cache-Control: public, max-age=86400` headers.
+3. If not found, fetches the asset from the GitLab upstream URL, writes it to `.cache/games/<subpath>` asynchronously, and simultaneously streams the response to the browser.
+
+This means the first load of any game asset incurs one upstream fetch; all subsequent loads (by any visitor) are served from local disk. The cache is permanent — files are never evicted automatically. To clear it, delete the `.cache/games/` directory.
+
+<Tip>
+  On a production server, mount `.cache/` on a volume with enough space to hold your expected game catalogue. A full MonkeyGG2 mirror can reach several gigabytes once all titles have been visited at least once.
+</Tip>
+
+### `.cache/sessions.json`
+
+A JSON file that persists visitor session records across server restarts. On startup, the server reads this file and loads all previous sessions into the in-memory `Map`. Any sessions that were `online` at the time of the last shutdown are immediately marked `closed`, with `closedAt` set to their last recorded heartbeat timestamp.
+
+The file is written asynchronously (via `fs.writeFile`) every time a session is opened, updated, or closed. Only the **last 500 sessions** are retained per write:
+
+```ts
+const list = Array.from(sessionsMap.values()).slice(-500);
+fs.writeFile(LOGS_FILE, JSON.stringify(list, null, 2), () => {});
+```
+
+Deleting this file (or calling `DELETE /api/telemetry/sessions`) clears the history permanently. The file is re-created on the next session event.
+
+## Game Proxy & Upstream URL
+
+The game proxy route (`/games/*`) sources assets from the **MonkeyGG2** preservation archive on GitLab:
+
+```
+https://gitlab.com/barryjensen-dev/monkeygg2/-/raw/main/games/
+```
+
+The two relevant constants in `server.ts` are:
+
+| Constant | Path |
+|---|---|
+| `CACHE_DIR` | `<cwd>/.cache/games/` |
+| `LOGS_FILE` | `<cwd>/.cache/sessions.json` |
+
+When a path has no file extension and does not end with `/`, the proxy issues a `301` redirect to the trailing-slash version so that relative asset URLs inside game HTML files resolve correctly. Directory-level requests (ending in `/`) automatically resolve to `index.html` within that directory.
+
+Path traversal is prevented by running `path.normalize()` on the subpath and stripping any leading `../` sequences before constructing the local cache path or the upstream URL.
+
+CORS headers set on every proxied response allow game iframes and web workers to load cross-origin sub-resources freely:
+
+```
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, OPTIONS
+Cross-Origin-Opener-Policy: same-origin-allow-popups
+```
+
+## Visitor Session Lifecycle
+
+Each browser tab that opens Nexxus registers a session via `POST /api/telemetry/open` and receives a unique session ID (`sess_<timestamp>_<random>`). The client then sends periodic heartbeat pings to `POST /api/telemetry/heartbeat` and a final close event to `POST /api/telemetry/close` (using `sendBeacon` so the event fires even during tab close).
+
+### Session Schema
+
+Each `VisitorSession` object stored in memory and persisted to `.cache/sessions.json` has the following shape:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Unique session identifier |
+| `ip` | `string` | Resolved client IP (strips `::ffff:` IPv6 prefix) |
+| `device` | `string` | Detected device type (e.g. `Desktop PC`, `Apple iPhone`) |
+| `browser` | `string` | Detected browser name |
+| `os` | `string` | Detected operating system |
+| `openedAt` | `number` | Unix ms timestamp when session opened |
+| `closedAt` | `number \| null` | Unix ms timestamp when session closed, or `null` if still active |
+| `lastHeartbeat` | `number` | Unix ms timestamp of the most recent heartbeat |
+| `durationSeconds` | `number` | Rolling duration computed on each heartbeat |
+| `status` | `'online' \| 'closed'` | Live status flag |
+| `currentGame` | `string?` | Title of the game currently being played, or `'Viewing Library'` |
+| `screen` | `string?` | Client screen resolution |
+| `language` | `string?` | Browser language (e.g. `'en'`) |
+| `kicked` | `boolean?` | Set to `true` by the admin kick endpoint; cleared on next heartbeat |
+
+### Heartbeat & Dead-Session Cleanup
+
+The server runs a **cleanup interval every 10 seconds**. Any session with `status === 'online'` whose `lastHeartbeat` is more than **25 seconds** in the past is automatically marked `closed`:
+
+```ts
+setInterval(() => {
+  const now = Date.now();
+  for (const session of sessionsMap.values()) {
+    if (session.status === 'online' && now - session.lastHeartbeat > 25000) {
+      session.status = 'closed';
+      session.closedAt = session.lastHeartbeat;
+      session.durationSeconds = Math.round((session.closedAt - session.openedAt) / 1000);
+    }
+  }
+}, 10000);
+```
+
+This means a visitor who closes their browser without triggering the `close` beacon will be marked offline within at most **35 seconds** (10-second poll interval + 25-second threshold).
+
+### Admin Kick
+
+The `POST /api/telemetry/kick` endpoint allows the admin console to silently redirect visitors away from their current game. The kick is delivered **passively** — the next heartbeat response includes `{ kicked: true }`, which the client handles by calling `setActiveGame(null)` and returning to the library. No alert, banner, or redirect URL is shown to the visitor.
+
+Kick targets can be specified by:
+- `{ id: "sess_..." }` — kick a single session by ID
+- `{ ip: "1.2.3.4" }` — kick all online sessions from a given IP
+- `{ all: true }` — kick every currently online visitor

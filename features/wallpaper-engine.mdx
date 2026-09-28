@@ -1,0 +1,163 @@
+---
+title: "Wallpaper Engine — Community Animated Wallpapers"
+sidebarTitle: "Wallpaper Engine"
+description: "Browse, submit, and apply community 4K static or live animated wallpapers. Submissions require admin approval before appearing in the public Nexxus store."
+---
+
+The Nexxus Wallpaper Engine is a community-driven wallpaper store built into the platform. Users can discover and apply high-quality static 4K images or live animated wallpapers (powered by WebGL shaders and other live engines) — and contribute their own creations for the community to enjoy.
+
+## WallpaperItem Type
+
+Every wallpaper in the store is represented by a `WallpaperItem` object:
+
+```typescript
+interface WallpaperItem {
+  id: string;
+  title: string;
+  description?: string;
+  thumbnailUrl: string;
+  author: string;
+  type: 'static' | 'live';
+  liveEngine?: string; // e.g. 'shader'
+  category: string;
+  status: 'pending' | 'approved' | 'rejected';
+  rejectReason?: string;
+  reviewer?: string;
+  submittedAt: number;
+  likes: number;
+}
+```
+
+| Field | Description |
+|---|---|
+| `id` | Unique wallpaper identifier |
+| `title` | Display name of the wallpaper |
+| `description` | Optional artist description or notes |
+| `thumbnailUrl` | Preview image URL shown in the store grid |
+| `author` | Username of the community member who submitted it |
+| `type` | `"static"` for 4K images or `"live"` for animated wallpapers |
+| `liveEngine` | Engine used for live wallpapers (e.g. `"shader"` for WebGL) |
+| `category` | Genre or style tag (e.g. `"nature"`, `"abstract"`, `"cyberpunk"`) |
+| `status` | Moderation status: `"pending"`, `"approved"`, or `"rejected"` |
+| `rejectReason` | Optional reason provided by the reviewer on rejection |
+| `reviewer` | Admin username who moderated the submission |
+| `submittedAt` | Unix timestamp (ms) of when the submission was made |
+| `likes` | Community like count |
+
+---
+
+## Wallpaper Types
+
+<CardGroup cols={2}>
+  <Card title="Static Wallpapers" icon="image">
+    Full-resolution 4K images that replace the platform background. Supports any photographic or illustrated art style. Fast to load and lightweight.
+  </Card>
+  <Card title="Live Wallpapers" icon="wand-magic-sparkles">
+    Animated wallpapers powered by a live engine. The `liveEngine` field specifies the renderer — currently `"shader"` (WebGL fragment shader) is supported, enabling real-time visual effects.
+  </Card>
+</CardGroup>
+
+---
+
+## Submission Workflow
+
+Community members can submit wallpapers for consideration. All submissions go through an admin review before becoming publicly visible.
+
+<Steps>
+  <Step title="Submit via the Wallpaper Engine UI">
+    Open the Wallpaper Engine tab and click the **Submit Wallpaper** button. Fill in the title, description, category, type, and upload your asset or provide a URL.
+  </Step>
+  <Step title="Submission enters Pending status">
+    The new `WallpaperItem` is created with `status: "pending"`. It is **not visible** in the public store at this point — only admins can see it in the moderation queue.
+  </Step>
+  <Step title="Admin reviews the submission">
+    An admin opens the **Visitor Intelligence Console** (keyboard shortcut `Shift + O`) and navigates to the **Wallpaper Approvals** tab to view all pending submissions.
+  </Step>
+  <Step title="Admin approves or rejects">
+    The admin calls the moderation endpoint with their decision:
+
+    - **Approve** → `status` becomes `"approved"`, wallpaper appears in the public store immediately.
+    - **Reject** → `status` becomes `"rejected"`, `rejectReason` and `reviewer` are recorded.
+  </Step>
+</Steps>
+
+<Note>
+  Wallpaper moderation is managed exclusively through the **Visitor Intelligence Console → Wallpaper Approvals** tab. Access it from the footer button or by pressing `Shift + O` on any page.
+</Note>
+
+---
+
+## Moderation Status Reference
+
+| Status | Visibility | Description |
+|---|---|---|
+| `pending` | Admin only | Awaiting review — not shown in public store |
+| `approved` | Public | Passed review — visible and applicable in the store |
+| `rejected` | Admin only | Declined — reason stored in `rejectReason` |
+
+---
+
+## Admin API Endpoints
+
+The Visitor Intelligence Console communicates with the following endpoints to manage wallpapers:
+
+### Fetch All Wallpapers
+
+```http
+GET /api/wallpapers/admin
+```
+
+Returns all wallpapers across all statuses (`pending`, `approved`, `rejected`), including full metadata and like counts. Used to populate the Wallpaper Approvals tab in the admin console.
+
+### Moderate a Wallpaper
+
+```http
+POST /api/wallpapers/{id}/moderate
+```
+
+**Request body:**
+
+```json
+{
+  "status": "approved" | "rejected",
+  "reviewer": "admin-username",
+  "reason": "Optional rejection reason"
+}
+```
+
+Sets the wallpaper's `status` field. If rejecting, `reason` is stored as `rejectReason`. The `reviewer` field is always recorded.
+
+### Delete a Wallpaper
+
+```http
+DELETE /api/wallpapers/{id}
+```
+
+Permanently removes a wallpaper from the database regardless of its current status. This action cannot be undone.
+
+<Warning>
+  The `DELETE /api/wallpapers/{id}` endpoint is irreversible. Use **Reject** when you want to decline a submission but retain the record — only delete if you need to permanently purge content.
+</Warning>
+
+---
+
+## Content Guidelines
+
+<CardGroup cols={2}>
+  <Card title="Accepted" icon="circle-check">
+    - Original or properly licensed artwork
+    - 4K resolution (3840×2160) or higher for static wallpapers
+    - Clean, non-offensive content appropriate for a school setting
+    - WebGL shaders with reasonable GPU load
+  </Card>
+  <Card title="Rejected" icon="circle-x">
+    - Copyrighted content without permission
+    - Inappropriate, explicit, or offensive imagery
+    - Excessively GPU-intensive live wallpapers that degrade performance
+    - Low-resolution or heavily compressed images
+  </Card>
+</CardGroup>
+
+<Tip>
+  For the best results with static submissions, export your image as a high-quality JPEG or lossless WebP at 3840×2160. Thumbnails are automatically generated — you only need to supply the full-resolution asset.
+</Tip>

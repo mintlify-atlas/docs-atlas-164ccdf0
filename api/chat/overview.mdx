@@ -1,0 +1,92 @@
+---
+title: "Nexxus Chat API Overview — Gemini AI Model Fallback"
+sidebarTitle: "Chat Overview"
+description: "Learn how the Nexxus Chat API connects to Google's Gemini models, handles automatic model fallback, and formats multi-turn conversations."
+---
+
+The Nexxus Chat API is a thin, server-side proxy that forwards conversation history to Google's Gemini AI models via the `@google/genai` SDK and streams the response back to the caller. It exposes two endpoints — one for checking the current configuration and one for submitting messages — and requires no authentication from the client because the server manages its own `GEMINI_API_KEY`. Clients that need to use a different key can optionally supply one in the request body.
+
+## Endpoints at a glance
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/chat/status` | Returns the active API key (masked and full) and the list of supported models |
+| `POST` | `/api/chat` | Submits a conversation and receives a generated reply |
+
+## Authentication
+
+No API key or session token is required in request headers. The server is pre-configured with a `GEMINI_API_KEY` environment variable. If you want to use your own Gemini key — for example, to use a higher-quota project — pass it as the `apiKey` field in the `POST /api/chat` request body. The server will use your key for that request only.
+
+## Message format
+
+Every message in the conversation history must follow the `@google/genai` content format:
+
+```json
+{
+  "role": "user",
+  "parts": [{ "text": "Your message here" }]
+}
+```
+
+The server normalises roles automatically: both `"model"` and `"assistant"` are accepted in the request body and are mapped to `"model"` before being forwarded to the SDK.
+
+## ChatMessage type
+
+The Nexxus client application stores messages using the `ChatMessage` interface defined in `src/types.ts`:
+
+```typescript
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  content: string;
+  timestamp: number;
+  modelUsed?: string;
+  isError?: boolean;
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Unique identifier for the message, generated client-side |
+| `role` | `'user' \| 'model'` | Who authored the message |
+| `content` | `string` | Plain-text or markdown message body |
+| `timestamp` | `number` | Unix millisecond timestamp set at creation time |
+| `modelUsed` | `string` (optional) | The Gemini model that generated this reply |
+| `isError` | `boolean` (optional) | Set to `true` when the message represents an API error displayed inline |
+
+## ChatPersona type
+
+The client also exports a `ChatPersona` union type for theming the chat interface:
+
+```typescript
+export type ChatPersona = 'oracle' | 'cyber' | 'sentinel' | 'hunter';
+```
+
+Personas are a client-side concept only — they do not affect the system instruction or the API request sent to the server.
+
+## Model fallback
+
+The server tries Gemini models in a deterministic sequence to maximise availability. On each attempt it applies a **25-second timeout**. If a model fails — whether due to a quota error, a network issue, or a timeout — the server immediately moves to the next candidate.
+
+**Fallback order:**
+
+1. The model you requested (defaults to `gemini-3-flash-preview`)
+2. `gemini-3-flash-preview`
+3. `gemini-3.5-flash`
+4. `gemini-3.5-flash-lite`
+5. `gemini-3.6-flash`
+6. `gemini-3.8-flash`
+
+Duplicates are removed, so if you request `gemini-3.5-flash` the list collapses to avoid retrying the same model twice.
+
+<Note>
+  If every model in the fallback list fails or times out, the endpoint returns HTTP **500** with an `error` field explaining the last failure. The `POST /api/chat` reference page covers the full error shape.
+</Note>
+
+## Default system instruction
+
+When no `systemInstruction` is supplied in the request body, the server uses the following prompt:
+
+> *"You are a helpful, intelligent, and friendly AI assistant. Answer questions clearly, accurately, and thoughtfully. Format responses with clean markdown when appropriate."*
+
+You can override this on a per-request basis by including a `systemInstruction` string in the POST body.

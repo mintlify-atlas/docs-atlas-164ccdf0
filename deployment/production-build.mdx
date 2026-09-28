@@ -1,0 +1,187 @@
+---
+title: "Nexxus Production Build Pipeline Explained"
+sidebarTitle: "Production Build"
+description: "Understand the Nexxus two-step build pipeline: Vite bundles the React SPA and esbuild compiles the Express server into a single deployable dist/ folder."
+---
+
+The Nexxus build pipeline compiles both the React frontend and the Express backend into a single `dist/` directory. Running `npm start` against that directory is all that is needed to serve the entire platform in production.
+
+## Running the Build
+
+<CodeGroup>
+  ```bash npm
+  npm run build
+  ```
+
+  ```bash yarn
+  yarn build
+  ```
+
+  ```bash pnpm
+  pnpm run build
+  ```
+
+  ```bash bun
+  bun run build
+  ```
+</CodeGroup>
+
+<Note>
+  Bun is a fully supported drop-in replacement for npm. Use `bun install` instead of `npm install`, `bun run dev` for local development, and `bun run build` for production. All scripts in `package.json` work identically under Bun.
+</Note>
+
+---
+
+## Two-Step Build Process
+
+The `build` script in `package.json` runs two tools sequentially:
+
+```json package.json
+"build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs"
+```
+
+### Step 1 — Vite: React SPA
+
+```bash
+vite build
+```
+
+Vite compiles the React 19 + TypeScript frontend into optimised static assets inside `dist/`. It processes all imports, applies tree-shaking, and produces content-hashed filenames for long-term caching.
+
+The Vite config (`vite.config.ts`) uses two plugins:
+
+- **`@vitejs/plugin-react`** — Babel-powered React Fast Refresh and JSX transform
+- **`@tailwindcss/vite`** — Tailwind CSS v4 integrated directly into the Vite pipeline (no PostCSS config needed)
+
+The `@` path alias resolves to the project root, so imports like `@/components/Button` work throughout the source tree.
+
+### Step 2 — esbuild: Express Server
+
+```bash
+esbuild server.ts \
+  --bundle \
+  --platform=node \
+  --format=cjs \
+  --packages=external \
+  --sourcemap \
+  --outfile=dist/server.cjs
+```
+
+| Flag | Effect |
+|---|---|
+| `--bundle` | Resolves and inlines all local imports from `server.ts` into a single file |
+| `--platform=node` | Targets the Node.js runtime (correct built-ins, no browser shims) |
+| `--format=cjs` | Outputs CommonJS — compatible with `node dist/server.cjs` |
+| `--packages=external` | Keeps `node_modules` imports as `require()` calls; they are resolved at runtime from your installed packages |
+| `--sourcemap` | Emits `dist/server.cjs.map` so stack traces point to original TypeScript lines |
+
+---
+
+## Output Files
+
+After a successful build the `dist/` directory contains:
+
+```
+dist/
+├── index.html          ← SPA entry point
+├── assets/
+│   ├── index-[hash].js ← Hashed React app bundle
+│   └── index-[hash].css← Hashed Tailwind CSS bundle
+├── server.cjs          ← Bundled Express server (CommonJS)
+└── server.cjs.map      ← Source map for server debugging
+```
+
+| File | Description |
+|---|---|
+| `dist/index.html` | The SPA entry point served for all non-API routes in production |
+| `dist/assets/` | Vite-generated, content-hashed JS and CSS bundles |
+| `dist/server.cjs` | Self-contained Express server; the only file Node.js needs to run |
+| `dist/server.cjs.map` | Source map linking bundled server code back to `server.ts` |
+
+---
+
+## Starting the Production Server
+
+Once the build completes, start the server with:
+
+<CodeGroup>
+  ```bash npm
+  npm start
+  ```
+
+  ```bash node
+  node dist/server.cjs
+  ```
+
+  ```bash bun
+  bun start
+  ```
+</CodeGroup>
+
+The server serves the compiled SPA from `dist/`, handles the telemetry API (`/api/telemetry/*`), the AI chat API (`/api/chat`), the game asset proxy (`/games/*`), and the health check (`/api/health`).
+
+<Tip>
+  Set `NODE_ENV=production` before starting to ensure the server unconditionally uses the `dist/` folder. Without it, the server infers production mode from the existence of `dist/index.html`, which works in most cases but makes the behaviour explicit.
+</Tip>
+
+---
+
+## TypeScript Type Checking
+
+The build scripts do **not** run the TypeScript compiler — esbuild strips types without checking them. Run the dedicated lint script to catch type errors before deploying:
+
+```bash
+npm run lint
+```
+
+This runs `tsc --noEmit`, which checks all files according to `tsconfig.json` (target `ES2022`, `moduleResolution: bundler`, `jsx: react-jsx`) without writing any output files. Fix any errors reported here before running `npm run build`.
+
+---
+
+## Cleaning the Build Output
+
+To remove the `dist/` folder and any leftover `server.js` artefact:
+
+```bash
+npm run clean
+```
+
+This runs `rm -rf dist server.js`. Run it before a fresh build if you want to guarantee no stale files remain.
+
+---
+
+## Runtime Dependencies vs Build Tools
+
+Understanding which packages are needed at runtime (and must be present in `node_modules` on the production machine) vs. which are only needed during the build:
+
+<CardGroup cols={2}>
+  <Card title="Runtime Dependencies" icon="server">
+    Present in `dependencies` in `package.json` — required when running `node dist/server.cjs`:
+
+    - `express` — HTTP server framework
+    - `@google/genai` — Gemini AI SDK
+    - `react` / `react-dom` — Bundled into `dist/assets/` by Vite; **not** needed on the server at runtime
+    - `motion` — Framer Motion animations (bundled by Vite)
+    - `lucide-react` — Icon library (bundled by Vite)
+    - `dotenv` — Loads `.env` file at server startup
+
+    Because esbuild uses `--packages=external`, all `dependencies` must exist in `node_modules` on the host. Run `npm install --omit=dev` on the production machine (or use your deployment platform's install step).
+  </Card>
+
+  <Card title="Build-Only DevDependencies" icon="wrench">
+    Present in `devDependencies` — only needed to compile; not required at runtime:
+
+    - `vite` — SPA bundler
+    - `@vitejs/plugin-react` — Vite React plugin
+    - `@tailwindcss/vite` — Tailwind CSS Vite plugin
+    - `esbuild` — Server bundler
+    - `tsx` — TypeScript runner used by `npm run dev`
+    - `typescript` — Type checker (`npm run lint`)
+    - `tailwindcss` / `autoprefixer` — CSS tooling
+    - `@types/*` — TypeScript declaration files
+  </Card>
+</CardGroup>
+
+<Info>
+  On a production server where you only run `node dist/server.cjs`, you can install without devDependencies to keep the footprint small: `npm install --omit=dev`. The build itself must happen somewhere that has the full install.
+</Info>

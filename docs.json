@@ -1,72 +1,93 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "Nexxus",
+  "theme": "luma",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
-  },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "primary": "#ffffff",
+    "light": "#f4f4f5",
+    "dark": "#09090b"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:support@mintlify.com"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/bo9911448866-crypto/Nexxus"
     }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/bo9911448866-crypto/Nexxus"
     }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/games-library",
+              "features/ai-chat",
+              "features/schedule-tracker",
+              "features/wallpaper-engine"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "admin/visitor-console",
+              "admin/wallpaper-moderation",
+              "admin/session-management"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/self-hosting",
+              "deployment/environment-variables",
+              "deployment/production-build"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Telemetry API",
+            "pages": [
+              "api/telemetry/overview",
+              "api/telemetry/open",
+              "api/telemetry/heartbeat",
+              "api/telemetry/close",
+              "api/telemetry/sessions",
+              "api/telemetry/kick"
+            ]
+          },
+          {
+            "group": "Chat API",
+            "pages": [
+              "api/chat/overview",
+              "api/chat/send",
+              "api/chat/status"
+            ]
+          },
+          {
+            "group": "Game Proxy",
+            "pages": [
+              "api/games/proxy"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

@@ -1,0 +1,162 @@
+---
+title: "POST /api/chat — Send Multi-Turn Chat to Gemini AI"
+sidebarTitle: "Send Message"
+description: "Submit a multi-turn conversation to the Nexxus Gemini AI backend and receive a generated text reply with the model name that produced it."
+---
+
+The `POST /api/chat` endpoint accepts a conversation history and optional configuration, forwards the request to Google's Gemini API via the `@google/genai` SDK, and returns the generated text along with the model that successfully responded. If your preferred model is unavailable, the server automatically tries a sequence of fallback models before giving up.
+
+## Endpoint
+
+```
+POST /api/chat
+Content-Type: application/json
+```
+
+## Request body
+
+<ParamField body="messages" type="array" required>
+  An ordered array of conversation turns. Must contain at least one item. Each element has two fields:
+
+  - **`role`** `string` — `"user"` for human turns; `"model"` or `"assistant"` for AI turns (both are accepted and normalised to `"model"` before being sent to the SDK).
+  - **`content`** `string` — The text of the turn.
+</ParamField>
+
+<ParamField body="systemInstruction" type="string">
+  A custom system prompt that shapes the model's persona and behaviour for the entire conversation. When omitted the server falls back to its built-in helpful-assistant prompt: *"You are a helpful, intelligent, and friendly AI assistant. Answer questions clearly, accurately, and thoughtfully."*
+</ParamField>
+
+<ParamField body="model" type="string" default="gemini-3-flash-preview">
+  The preferred Gemini model to use for this request. If the model fails or times out, the server automatically tries the remaining models in the fallback sequence. See the [Chat API Overview](/api/chat/overview) for the full fallback order.
+</ParamField>
+
+<ParamField body="apiKey" type="string">
+  A custom Gemini API key. When provided, this key overrides the server's configured `GEMINI_API_KEY` for this request only. Useful when you need to bill usage against your own Google Cloud project.
+</ParamField>
+
+## Response fields
+
+### Success — HTTP 200
+
+<ResponseField name="success" type="boolean">
+  Always `true` on a successful response.
+</ResponseField>
+
+<ResponseField name="text" type="string">
+  The full generated reply from the model, in plain text or markdown depending on the model's output.
+</ResponseField>
+
+<ResponseField name="model" type="string">
+  The name of the Gemini model that produced this response. May differ from your requested model if a fallback was used.
+</ResponseField>
+
+<ResponseField name="keyUsed" type="string">
+  The Gemini API key used for this request. This is the raw key string — treat it as sensitive.
+</ResponseField>
+
+### Error — HTTP 400
+
+Returned when the `messages` field is missing or is not a non-empty array.
+
+<ResponseField name="error" type="string">
+  A human-readable explanation of the validation failure, e.g. `"messages array is required"`.
+</ResponseField>
+
+### Error — HTTP 500
+
+Returned when all models in the fallback sequence have failed or timed out.
+
+<ResponseField name="error" type="string">
+  The error message from the last failed model attempt.
+</ResponseField>
+
+<ResponseField name="details" type="string">
+  Additional context, typically `"High traffic on model endpoints, please retry."` when no more specific message is available.
+</ResponseField>
+
+<Note>
+  Each model attempt carries a **25-second timeout**. With five candidates in the fallback list, a worst-case request where every model times out can take up to **125 seconds** before the endpoint returns HTTP 500. Design client-side timeouts accordingly, or catch errors early and surface them to the user.
+</Note>
+
+## Examples
+
+### cURL — multi-turn conversation
+
+```bash
+curl -X POST https://your-nexxus-host/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the difference between a process and a thread?"
+      },
+      {
+        "role": "model",
+        "content": "A process is an independent program in execution with its own memory space. A thread is a lighter unit of execution that lives inside a process and shares its memory with other threads in the same process."
+      },
+      {
+        "role": "user",
+        "content": "Can you show a simple Python example that spawns two threads?"
+      }
+    ],
+    "model": "gemini-3-flash-preview",
+    "systemInstruction": "You are an expert software engineering tutor. Explain concepts clearly and always include runnable code examples."
+  }'
+```
+
+**Success response:**
+
+```json
+{
+  "success": true,
+  "text": "Here is a simple Python example using the `threading` module:\n\n```python\nimport threading\n\ndef worker(name):\n    print(f\"Thread {name} is running\")\n\nt1 = threading.Thread(target=worker, args=(\"A\",))\nt2 = threading.Thread(target=worker, args=(\"B\",))\n\nt1.start()\nt2.start()\n\nt1.join()\nt2.join()\nprint(\"Both threads finished\")\n```",
+  "model": "gemini-3-flash-preview",
+  "keyUsed": "AQ...9ew"
+}
+```
+
+**Error response — all models failed:**
+
+```json
+{
+  "error": "Failed to generate response from Gemini API",
+  "details": "High traffic on model endpoints, please retry."
+}
+```
+
+**Error response — missing messages:**
+
+```json
+{
+  "error": "messages array is required"
+}
+```
+
+### JavaScript / TypeScript — browser fetch
+
+```typescript
+const response = await fetch('/api/chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    messages: [
+      { role: 'user', content: 'Explain async/await in JavaScript in simple terms.' }
+    ],
+    model: 'gemini-3-flash-preview'
+  })
+});
+
+if (!response.ok) {
+  const errorData = await response.json().catch(() => ({}));
+  throw new Error(errorData.error || `Server responded with ${response.status}`);
+}
+
+const data = await response.json();
+console.log(data.text);   // The generated reply
+console.log(data.model);  // The model that responded, e.g. "gemini-3-flash-preview"
+```
+
+<Tip>
+  The Nexxus client limits conversation history to the **last 10 messages** before sending to keep request payloads small and stay within context-window limits. Consider implementing the same trimming logic in your own integration.
+</Tip>

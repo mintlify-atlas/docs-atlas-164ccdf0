@@ -1,0 +1,171 @@
+---
+title: "Visitor Intelligence Console — Real-Time Telemetry"
+sidebarTitle: "Visitor Console"
+description: "Monitor live visitor sessions, search and filter session logs, export data, and kick active players — all from the built-in admin console."
+---
+
+The Visitor Intelligence Console is Nexxus's built-in administrator dashboard, providing real-time visibility into every browser session on your deployment. It shows who is online right now, what they are playing, how long they have been active, and where they are connecting from — with zero third-party analytics services required.
+
+## Opening the Console
+
+The console can be opened from anywhere in the app using any of the following methods:
+
+<CardGroup cols={2}>
+  <Card title="Keyboard Shortcut" icon="keyboard">
+    Press **Shift + O** from any screen in the app. This is the fastest method and works regardless of which tab or view is currently active.
+  </Card>
+  <Card title="Footer Button" icon="square-terminal">
+    Click the **SHIFT + O** button in the Nexxus footer bar. The footer is always visible and accessible from the home screen.
+  </Card>
+  <Card title="URL Query Parameter" icon="link">
+    Navigate to your deployment URL with `?admin` appended — for example, `https://your-nexxus.app/?admin`. The console opens automatically on page load.
+  </Card>
+  <Card title="URL Hash" icon="hash">
+    Append `#admin` to any page URL. Useful for bookmarking direct console access.
+  </Card>
+</CardGroup>
+
+To **close** the console, press `Escape` or click the **CLOSE** button in the top-right corner of the header. If a Session Inspector modal is open, pressing `Escape` first dismisses the modal, then a second press closes the full console.
+
+---
+
+## Console Tabs
+
+The console is divided into two tabs, accessible from the sub-navigation bar beneath the header.
+
+<CardGroup cols={2}>
+  <Card title="Visitor Telemetry" icon="activity">
+    Real-time session monitoring — the default view. Shows all recorded visitor sessions with live status, device info, IP addresses, duration, and activity. The tab label displays the current count of online visitors.
+  </Card>
+  <Card title="Wallpaper Approvals" icon="sparkles">
+    Community wallpaper submission moderation queue. The tab is highlighted in **cyan** when active and shows an amber pulsing badge with the count of pending submissions. See [Wallpaper Moderation](/admin/wallpaper-moderation) for the full workflow.
+  </Card>
+</CardGroup>
+
+---
+
+## Telemetry Dashboard
+
+### Metric Cards
+
+Four summary cards appear at the top of the Visitor Telemetry tab, refreshed automatically every 4 seconds.
+
+<CardGroup cols={2}>
+  <Card title="Active Online Now" icon="signal">
+    The number of live browser tabs currently connected to your Nexxus server. A pulsing green dot indicates real-time activity. This count updates within 2.5 seconds of any visitor connecting or disconnecting.
+  </Card>
+  <Card title="Total Recorded Sessions" icon="database">
+    All session opens recorded since the last CLEAR action. Includes both active and closed sessions. The server retains up to the last **500 sessions** in memory and on disk.
+  </Card>
+  <Card title="Unique IP Addresses" icon="globe">
+    The count of distinct client IP addresses across all recorded sessions. Useful for estimating true unique visitor reach (note: visitors behind shared NAT or VPNs share an IP).
+  </Card>
+  <Card title="Avg Session Duration" icon="clock">
+    The mean session length across all recorded sessions, formatted as minutes and seconds (e.g. `4m 32s`). Sessions under one second are displayed as `< 1s`.
+  </Card>
+</CardGroup>
+
+### Filtering and Search
+
+Use the filter bar beneath the metric cards to narrow the session table.
+
+<CardGroup cols={2}>
+  <Card title="Status Filter" icon="filter">
+    Three toggle buttons: **All Sessions**, **Online Only**, and **Closed Only**. The active filter is highlighted in white. Defaults to All Sessions.
+  </Card>
+  <Card title="Search" icon="magnifying-glass">
+    Free-text search across IP address, device model, operating system, browser name, and current game/activity. Searches are applied instantly as you type.
+  </Card>
+</CardGroup>
+
+### Session Table
+
+The main table lists all sessions matching the current filter. Click any row to open the [Session Inspector](#session-inspector) modal for that session.
+
+| Column | Description |
+|---|---|
+| **Status** | `ONLINE` (green pulsing) or `CLOSED` (grey). Your own admin tab is tagged **YOU (THIS TAB)** in cyan. |
+| **IP Address** | The visitor's detected IP. Click the copy icon to copy it to the clipboard. |
+| **Device Model** | Detected device name, e.g. `Windows PC`, `Apple iPhone`, `Samsung Galaxy Device`. |
+| **OS & Browser** | Operating system and browser name separated by a bullet, e.g. `Windows 11 / 10 • Google Chrome`. |
+| **Opened At** | Timestamp when the session was first created (entry time). |
+| **Closed At** | Timestamp when the session closed, or **Active Now** (pulsing green) if still online. |
+| **Duration** | Total time the session has been or was open, updated live for active sessions. |
+| **Activity** | The visitor's last reported state — e.g. `Playing 1v1.LOL` or `Browsing Library`. |
+| **Kick Action** | A **KICK TO HOME** button for each active visitor (excluding your own tab). Offline sessions show `OFFLINE`. |
+| **Details** | Chevron arrow indicating the row is clickable to open the inspector. |
+
+### Session Inspector
+
+Clicking any session row opens a modal overlay with the full raw telemetry record for that session.
+
+<CardGroup cols={2}>
+  <Card title="Identity Fields" icon="id-card">
+    **Status**, **IP Address**, **Device Model**, **Operating System**, **Browser & Version**
+  </Card>
+  <Card title="Environment Fields" icon="monitor">
+    **Screen Resolution**, **Language**, **Page Opened At**, **Page Closed At**
+  </Card>
+  <Card title="Engagement Fields" icon="chart-line">
+    **Total Duration**, **Last Known Activity**
+  </Card>
+  <Card title="Admin Actions" icon="shield">
+    If the session is online, a **Kick from Game to Home** button is available directly in the inspector. Your own session is labelled **THIS IS YOUR CURRENT BROWSER SESSION (YOU / ADMIN)**.
+  </Card>
+</CardGroup>
+
+Close the inspector by clicking **CLOSE INSPECTOR** or pressing `Escape`.
+
+---
+
+## Toolbar Actions
+
+The console header contains a set of action buttons that operate on the full session log.
+
+<CardGroup cols={2}>
+  <Card title="Auto-Refresh Toggle" icon="radio">
+    Toggles live polling on or off. When enabled (default), the console fetches fresh session data — for both telemetry and wallpaper queue — every **4 seconds**. The button shows a pulsing green radio icon and the label **POLLING ON** when active, or **PAUSED** when disabled.
+  </Card>
+  <Card title="Manual Refresh" icon="rotate-right">
+    Forces an immediate fetch of the latest session data outside the auto-refresh cycle. The icon spins while loading.
+  </Card>
+  <Card title="Export JSON" icon="download">
+    Downloads all currently loaded sessions as a formatted JSON file named `nexxus_visitor_logs_YYYY-MM-DD.json`. Useful for external analysis or archiving.
+  </Card>
+  <Card title="KICK ALL" icon="user-x">
+    Silently redirects **every currently active visitor** from their game back to the Nexxus home page. No alert or banner is shown to visitors. A confirmation dialog appears before executing. See [Kick Mechanism](/admin/session-management#kick-mechanism) for technical details.
+  </Card>
+  <Card title="CLEAR" icon="trash">
+    Permanently deletes all session logs from memory and disk (`.cache/sessions.json`). Requires confirmation. Also resets the admin's own session tracker so a fresh session is created on the next page load.
+  </Card>
+  <Card title="CLOSE" icon="x">
+    Returns to the main Nexxus interface. Equivalent to pressing `Escape`.
+  </Card>
+</CardGroup>
+
+---
+
+## How Tracking Works
+
+<Note>
+  Entry is detected on page initialization, exit is registered via `sendBeacon` and a 25-second inactivity heartbeat. IP address is captured via standard HTTP headers (`x-forwarded-for`). Device name and OS are detected via client environment and User Agent.
+</Note>
+
+Every visitor's browser runs the `TelemetryClient` module (`src/utils/telemetry.ts`), which:
+
+1. Generates or reuses a stable `session_${timestamp}_${random}` ID stored in `sessionStorage` under the key `nexxus_session_id` — surviving page refreshes within the same tab.
+2. Calls `POST /api/telemetry/open` on page load with device details.
+3. Sends a heartbeat to `POST /api/telemetry/heartbeat` every **2.5 seconds**, updating the current game and duration.
+4. Calls `POST /api/telemetry/close` via `navigator.sendBeacon` on `beforeunload` and `pagehide`.
+
+The server marks sessions as `closed` after **25 seconds** of no heartbeat (checked every 10 seconds), ensuring stale sessions do not linger as "online."
+
+For a deep dive into the full session lifecycle and the kick mechanism, see [Session Management](/admin/session-management).
+
+---
+
+## First-Time Setup Note
+
+<Note>
+  When you first open the console after setting up your Nexxus deployment, the session log will already contain entries — these are **your own browser testing sessions** from when you opened, refreshed, or played games during setup. Any session matching your current tab is tagged **YOU (THIS TAB)** in cyan. Click **CLEAR** in the top-right toolbar to wipe these test logs before sharing your link with real users, so you start with a clean slate.
+</Note>

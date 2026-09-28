@@ -1,0 +1,161 @@
+---
+title: "Wallpaper Moderation — Review & Publish Submissions"
+sidebarTitle: "Wallpaper Moderation"
+description: "Review, approve, reject, and permanently delete community-submitted wallpapers from the admin console before they appear in the public Wallpaper Store."
+---
+
+The Wallpaper Moderation dashboard gives administrators full control over what community-submitted wallpapers appear in the public Wallpaper Store. Every submission enters a pending queue and must be explicitly approved before it becomes visible to visitors. Rejections are recorded with an optional reason, and deletions are permanent and immediate.
+
+## Opening the Moderation Queue
+
+<Steps>
+  <Step title="Open the Visitor Intelligence Console">
+    Press **Shift + O** from anywhere in Nexxus, click the **SHIFT + O** button in the footer, or navigate to `?admin` in the URL. The console opens as a full-screen overlay.
+  </Step>
+  <Step title="Switch to the Wallpaper Approvals tab">
+    In the sub-navigation bar beneath the console header, click the **Wallpaper Approvals** tab. The tab is highlighted in **cyan** when active. If there are any pending submissions, an amber pulsing badge shows the count — for example, **3 PENDING**.
+  </Step>
+  <Step title="Select a filter to begin reviewing">
+    The queue defaults to the **Pending Review** filter. You can also switch to **Approved**, **Rejected**, or **All** to audit the full catalogue at any time.
+  </Step>
+</Steps>
+
+---
+
+## Queue Metrics
+
+Four stat cards summarise the current state of the wallpaper catalogue. These update automatically every 4 seconds alongside the rest of the console.
+
+<CardGroup cols={2}>
+  <Card title="Pending Reviews" icon="hourglass">
+    **Amber** — the number of submissions awaiting an administrator decision. A pulsing amber dot appears when this count is greater than zero. These wallpapers are not yet visible to visitors.
+  </Card>
+  <Card title="Approved & Live" icon="circle-check">
+    **Emerald** — wallpapers that have been approved and are currently available in the public Wallpaper Store for all visitors to browse and apply.
+  </Card>
+  <Card title="Rejected / Denied" icon="circle-x">
+    **Rose** — submissions that were rejected. These remain in the system (visible only to admins) with their rejection reason attached, but are hidden from the public store.
+  </Card>
+  <Card title="Total Catalog" icon="sparkles">
+    **White** — the total count across all statuses: pending, approved, and rejected. Use this as a running tally of every wallpaper ever submitted to your deployment.
+  </Card>
+</CardGroup>
+
+---
+
+## Filter Buttons
+
+Use the filter row to scope the cards shown below to a specific status.
+
+| Filter | Highlights | Description |
+|---|---|---|
+| **Pending Review** | Amber | Submissions awaiting a decision — the default view. |
+| **Approved** | Emerald | Wallpapers currently live in the public store. |
+| **Rejected** | Rose | Declined submissions. Rejection reason is shown on the card. |
+| **All** | White | Every submission regardless of status. |
+
+A **Refresh Queue** button sits at the top-right of the filter row to manually fetch the latest data outside the 4-second auto-refresh cycle.
+
+---
+
+## Wallpaper Card Anatomy
+
+Each submission is displayed as a card in a two-column grid. Every card contains the following information.
+
+<CardGroup cols={2}>
+  <Card title="Preview Image" icon="image">
+    A full-width aspect-ratio thumbnail of the wallpaper. Overlays in the top-left show the **type badge** and **category badge**; the top-right shows the current **status overlay**.
+  </Card>
+  <Card title="Type Badge" icon="tag">
+    - **LIVE ENGINE** — an animated/shader wallpaper. The badge also shows the engine name (e.g. `LIVE ENGINE: shader`) in cyan.
+    - **STATIC 4K** — a high-resolution static image wallpaper, shown in grey.
+  </Card>
+  <Card title="Status Overlay" icon="flag">
+    - **PENDING APPROVAL** — pulsing amber badge; visible only in the admin queue.
+    - **APPROVED & LIVE** — solid emerald badge; the wallpaper is in the public store.
+    - **DENIED** — solid rose badge; the wallpaper has been rejected.
+  </Card>
+  <Card title="Metadata" icon="info">
+    **Title**, **author** (`@username`), **description**, **submission date**, and **likes count**. If the wallpaper was rejected, the rejection reason is displayed in a rose callout beneath the description.
+  </Card>
+</CardGroup>
+
+---
+
+## Moderation Actions
+
+Each card has three action controls at the bottom, separated by a divider.
+
+### Accept & Publish
+
+Approves the wallpaper and makes it immediately available in the public Wallpaper Store.
+
+- **API call:** `POST /api/wallpapers/{id}/moderate`
+- **Request body:** `{ "status": "approved", "reviewer": "Admin" }`
+- Once approved, the button becomes disabled and shows **Approved & Live** — the decision cannot be re-approved.
+- A confirmation banner appears at the top of the console: *"Wallpaper ACCEPTED and published to public Wallpaper Store!"*
+
+### Deny / Reject
+
+Rejects the submission and hides it from the public store.
+
+- A prompt appears asking for an **optional rejection reason**. If left blank, the reason defaults to `"Did not meet quality guidelines"`.
+- **API call:** `POST /api/wallpapers/{id}/moderate`
+- **Request body:** `{ "status": "rejected", "reason": "<reason>", "reviewer": "Admin" }`
+- The rejection reason is stored on the wallpaper record and displayed on the card for future reference.
+- Once rejected, the button becomes disabled and shows **Denied**.
+
+### Delete (Trash Icon)
+
+Permanently and irreversibly removes the wallpaper from the system.
+
+- A browser confirmation dialog must be acknowledged before the deletion proceeds.
+- **API call:** `DELETE /api/wallpapers/{id}`
+- The card is removed from the queue immediately after a successful response.
+- This action cannot be undone — use it only for spam, duplicate, or harmful submissions.
+
+<Warning>
+  Deletion via the trash icon is permanent. Unlike rejection, which keeps the record visible in the admin queue, a deleted wallpaper and all its metadata are removed from the server. There is no recycle bin or undo.
+</Warning>
+
+---
+
+## Full Moderation Workflow
+
+<Steps>
+  <Step title="A user submits a wallpaper">
+    A visitor uploads a wallpaper through the Wallpaper Engine interface. The submission is saved with a `pending` status and does not appear in the public store yet. The **Pending Reviews** metric card increments, and the amber pulsing badge appears on the Wallpaper Approvals tab.
+  </Step>
+  <Step title="Admin opens the moderation queue">
+    Open the Visitor Intelligence Console (`Shift+O`) and click the **Wallpaper Approvals** tab. The queue defaults to **Pending Review** so newly submitted wallpapers are shown immediately.
+  </Step>
+  <Step title="Review the submission">
+    Examine the preview image, type and category badges, title, author username, description, submission date, and like count. All available information is shown directly on the card — no additional navigation required.
+  </Step>
+  <Step title="Make a moderation decision">
+    Choose one of three actions:
+    - **Accept & Publish** — if the wallpaper meets your quality and content standards. It goes live immediately.
+    - **Deny / Reject** — if the submission does not meet standards. Enter an optional reason to help inform the submitter.
+    - **Delete** — if the submission is spam, a duplicate, or otherwise needs to be fully removed from the system.
+  </Step>
+  <Step title="Confirm the outcome">
+    A feedback banner appears at the top of the console confirming the action taken. The card updates its status overlay instantly. The queue metrics refresh to reflect the new counts.
+  </Step>
+  <Step title="Continue reviewing">
+    Work through remaining pending submissions. Use the **Refresh Queue** button or rely on auto-refresh (every 4 seconds) to catch new submissions as they arrive.
+  </Step>
+</Steps>
+
+---
+
+## Action Feedback
+
+After every moderation action, the console displays a feedback banner at the top of the main content area with a green checkmark icon. The banner dismisses automatically after 4 seconds, or can be closed manually. Example messages:
+
+- *"Wallpaper ACCEPTED and published to public Wallpaper Store!"*
+- *"Wallpaper REJECTED/DENIED."*
+- *"Wallpaper permanently deleted."*
+
+<Tip>
+  If you have a backlog of pending submissions, set your browser tab to keep the console open with **Auto-Refresh** enabled. The amber badge on the tab provides a live count so you can moderate new submissions as they arrive without manually polling.
+</Tip>

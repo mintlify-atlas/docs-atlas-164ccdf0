@@ -1,0 +1,157 @@
+---
+title: "POST /api/telemetry/open — Register Visitor Session"
+sidebarTitle: "Open Session"
+description: "Register a new visitor session on page load. The server auto-detects IP, browser, OS, and device from request headers when fields are omitted from the body."
+---
+
+`POST /api/telemetry/open` is the entry point for the telemetry lifecycle. The client calls it once when the page initialises to create a `VisitorSession` record in the server's in-memory store. All fields in the request body are optional — the server fills in any missing values by parsing the `User-Agent` header and resolving the client IP from `x-forwarded-for` or the raw socket address. The newly created session is immediately persisted to `.cache/sessions.json`.
+
+<Note>
+  The Nexxus client SDK (`src/utils/telemetry.ts`) calls this endpoint automatically inside `telemetry.init()`. You only need to call it directly if you are building a custom integration or testing the API manually.
+</Note>
+
+## Request
+
+```http
+POST /api/telemetry/open
+Content-Type: application/json
+```
+
+### Body Parameters
+
+All parameters are optional. Omitting a field causes the server to fall back to its own detection logic.
+
+<ParamField body="id" type="string">
+  A custom session identifier. If omitted, the server generates one in the
+  format `sess_{timestamp}_{random}` — for example `sess_1703000000000_abc123`.
+  Providing a stable ID (e.g. sourced from `sessionStorage`) lets the same
+  logical session survive a full page refresh without creating a duplicate
+  record.
+</ParamField>
+
+<ParamField body="deviceName" type="string">
+  Human-readable device model name, e.g. `"Windows PC"` or `"Apple iPhone"`.
+  When omitted the server infers the device from the `User-Agent` header using
+  the same detection logic as the client SDK.
+</ParamField>
+
+<ParamField body="browser" type="string">
+  Browser name, e.g. `"Chrome 124"` or `"Mozilla Firefox"`. When omitted the
+  server detects the browser from the `User-Agent` header.
+</ParamField>
+
+<ParamField body="os" type="string">
+  Operating system string, e.g. `"Windows 11 / 10"` or `"macOS"`. When omitted
+  the server detects the OS from the `User-Agent` header.
+</ParamField>
+
+<ParamField body="screen" type="string">
+  Screen resolution reported by the client, e.g. `"1920x1080"`. Defaults to
+  `"Unknown"` when omitted.
+</ParamField>
+
+<ParamField body="language" type="string">
+  BCP 47 language tag from `navigator.language`, e.g. `"en-US"` or `"fr-FR"`.
+  Defaults to `"en"` when omitted.
+</ParamField>
+
+<ParamField body="currentGame" type="string">
+  The visitor's current activity string. Defaults to `"Viewing Library"` when
+  omitted. The client SDK sets this to `"Browsing Library"` on initialisation
+  and later updates it via heartbeats as the visitor navigates.
+</ParamField>
+
+## IP Address Resolution
+
+<Warning>
+  The client IP is **always resolved server-side** and cannot be overridden via the request body. The server reads `x-forwarded-for` first (taking the leftmost, client-originating address), then falls back to the raw socket's `remoteAddress`. IPv6-mapped IPv4 addresses (e.g. `::ffff:192.168.1.1`) are normalised to their plain IPv4 form.
+</Warning>
+
+## Response
+
+### 200 OK — Session Created
+
+```json
+{
+  "success": true,
+  "sessionId": "sess_1703000000000_abc123"
+}
+```
+
+<ResponseField name="success" type="boolean">
+  Always `true` on a successful open.
+</ResponseField>
+
+<ResponseField name="sessionId" type="string">
+  The session ID that was stored. Use this value in all subsequent heartbeat
+  and close requests. If you supplied a custom `id` in the request body, this
+  will echo that value back.
+</ResponseField>
+
+### 500 Internal Server Error
+
+```json
+{
+  "error": "Error recording session"
+}
+```
+
+<ResponseField name="error" type="string">
+  A human-readable error message. This response is only returned when an
+  unexpected server-side exception occurs.
+</ResponseField>
+
+## Example
+
+### curl
+
+```bash
+curl -X POST http://localhost:3000/api/telemetry/open \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "sess_1703000000000_abc123",
+    "deviceName": "Windows PC",
+    "browser": "Chrome 124",
+    "os": "Windows 11 / 10",
+    "screen": "1920x1080",
+    "language": "en-US",
+    "currentGame": "Viewing Library"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "sessionId": "sess_1703000000000_abc123"
+}
+```
+
+### Minimal request (let the server auto-detect everything)
+
+```bash
+curl -X POST http://localhost:3000/api/telemetry/open \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "sessionId": "sess_1703021893441_7gk2xp"
+}
+```
+
+### Client SDK usage
+
+The following snippet shows how the built-in `TelemetryClient` calls this endpoint. Call `telemetry.init()` once at the application root.
+
+```typescript
+import { telemetry } from '@/utils/telemetry';
+
+// On app mount — opens the session and starts the heartbeat interval
+telemetry.init();
+```

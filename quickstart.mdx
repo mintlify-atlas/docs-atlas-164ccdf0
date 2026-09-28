@@ -1,47 +1,163 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Quickstart: Run Nexxus Locally in Under 5 Minutes"
+sidebarTitle: "Quickstart"
+description: "Step-by-step guide to cloning, configuring, and launching the Nexxus gaming platform locally — from Node.js prerequisites through your first browser session."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
+Nexxus ships as a single TypeScript monorepo with an Express backend and a React 19 frontend. This page walks you through every step needed to get the development server running on your machine — from checking prerequisites and cloning the repo, through setting up environment variables and starting the server, to understanding the production build pipeline.
 
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+<Note>
+  The AI Chat and community Wallpaper Engine features both require a valid `GEMINI_API_KEY`. Without it, the `/api/chat` endpoint will fall back to the built-in default key, which may be rate-limited. Obtaining your own key is strongly recommended for any sustained use.
+</Note>
 
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+## Setup
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+
+  <Step title="Check Prerequisites">
+    Nexxus requires **Node.js 18 or later**. Verify your version before continuing:
 
     ```bash
-    npm install your-package
+    node --version
+    # Should print v18.x.x or higher
+    ```
+
+    You will also need a **Gemini API key** to unlock the AI Chat and Wallpaper Engine. Get one for free at [Google AI Studio](https://aistudio.google.com/app/apikey) — no billing required for the free tier.
+  </Step>
+
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/bo9911448866-crypto/Nexxus.git
+    cd Nexxus
     ```
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+
+  <Step title="Install Dependencies">
+    Nexxus has no unusual peer-dependency requirements. Install with your preferred package manager:
+
+    <CodeGroup>
+      ```bash npm
+      npm install
+      ```
+
+      ```bash yarn
+      yarn install
+      ```
+
+      ```bash pnpm
+      pnpm install
+      ```
+
+      ```bash bun
+      bun install
+      ```
+    </CodeGroup>
+
+    This installs both runtime dependencies (Express, React 19, `@google/genai`, Tailwind CSS, Motion) and dev dependencies (Vite, esbuild, TypeScript, type definitions).
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Copy the example environment file and fill in your values:
 
     ```bash
-    your-cli init
+    cp .env.example .env
     ```
-  </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
 
+    Open `.env` in your editor and set at minimum:
+
+    ```env
+    GEMINI_API_KEY="your-api-key-from-google-ai-studio"
+    APP_URL="http://localhost:3000"
+    ```
+
+    `PORT` and `NODE_ENV` are optional during local development — the server defaults to port `3000` and automatically uses Vite's dev middleware when `NODE_ENV` is not set to `production`.
+
+    <Tip>
+      Leave `NODE_ENV` unset (or set it to `development`) while working locally. The server detects the absence of a `dist/index.html` file and activates Vite middleware automatically, giving you hot module replacement for the frontend.
+    </Tip>
+  </Step>
+
+  <Step title="Start the Development Server">
     ```bash
-    your-cli start
+    npm run dev
+    ```
+
+    Under the hood this runs `tsx server.ts`, which:
+    1. Reads your `.env` file via `dotenv`.
+    2. Creates `.cache/games/` and loads `.cache/sessions.json` (if it exists).
+    3. Registers all Express API routes (`/api/chat`, `/api/telemetry/*`, `/games/*`).
+    4. Spins up a Vite dev server in middleware mode and attaches it to Express.
+    5. Begins listening on `http://0.0.0.0:3000` (or your custom `PORT`).
+
+    You should see:
+
+    ```
+    Nexxus Server running on http://0.0.0.0:3000
     ```
   </Step>
+
+  <Step title="Open in Your Browser">
+    Navigate to [http://localhost:3000](http://localhost:3000).
+
+    On your **first visit** in a new browser tab, a fullscreen cinematic intro sequence plays automatically. Press **Escape** at any time to skip it and jump straight to the game library. Subsequent navigations within the same tab session will skip the intro entirely (controlled by a `sessionStorage` flag).
+
+    From there you can:
+    - Browse, search, and filter the full game library.
+    - Switch to the **Schedule** tab to set up your class timetable.
+    - Switch to the **Chat** tab to start a conversation with the Nexxus AI.
+    - Press **Shift+O** to open the Visitor Telemetry Console.
+  </Step>
+
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## Production Build
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+When you are ready to deploy Nexxus to a server, run the two-step build:
+
+```bash
+npm run build
+```
+
+This command executes two things in sequence:
+
+1. **`vite build`** — compiles and tree-shakes the React SPA into `dist/` (HTML, JS, CSS, assets).
+2. **`esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs`** — bundles `server.ts` into a standalone CommonJS file at `dist/server.cjs` with a source map for debugging.
+
+Once the build completes, start the production server:
+
+```bash
+npm start
+```
+
+This runs `node dist/server.cjs`. In production mode Express detects the presence of `dist/index.html` (or reads `NODE_ENV=production`) and switches from Vite middleware to serving the static `dist/` folder directly, falling back to `dist/index.html` for all unmatched routes (client-side routing).
+
+## Port Customization
+
+Set the `PORT` environment variable before starting either the dev or production server:
+
+```bash
+# Development
+PORT=8080 npm run dev
+
+# Production
+PORT=8080 npm start
+```
+
+Or add it to your `.env` file:
+
+```env
+PORT=8080
+```
+
+The server binds to `0.0.0.0` on the specified port, making it reachable from any network interface on the host machine.
+
+## Available Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start dev server via `tsx server.ts` with Vite middleware |
+| `npm run build` | Vite SPA build + esbuild server bundle → `dist/` |
+| `npm start` | Run production bundle (`node dist/server.cjs`) |
+| `npm run preview` | Preview the Vite production build locally |
+| `npm run lint` | Type-check without emitting (`tsc --noEmit`) |
+| `npm run clean` | Remove `dist/` and `server.js` |

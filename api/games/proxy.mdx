@@ -1,0 +1,158 @@
+---
+title: "GET /games/* — MonkeyGG2 Game Proxy with Disk Cache"
+sidebarTitle: "Game Proxy"
+description: "Proxy endpoint that serves HTML5 and Flash game assets from the MonkeyGG2 GitLab repository with local disk caching and automatic MIME type detection."
+---
+
+The `/games/*` proxy route makes every game in the [MonkeyGG2 GitLab repository](https://gitlab.com/barryjensen-dev/monkeygg2) available directly through the Nexxus server. On the first request for any asset the server fetches it from GitLab, saves it to a local disk cache, and returns it to the caller. Subsequent requests for the same path are served entirely from disk — no upstream network call is made. All responses include permissive CORS headers so games can load sub-resources (scripts, images, audio, WebAssembly) from within an iframe or web worker without browser policy errors.
+
+## Endpoint
+
+```
+GET /games/{subpath}
+```
+
+`{subpath}` is any path relative to the `games/` directory in the MonkeyGG2 repository, including nested directories and file extensions.
+
+## How a request is processed
+
+1. **Trailing-slash redirect** — If `{subpath}` contains no file extension and does not already end with `/`, the server returns a `301 Moved Permanently` to the same URL with a trailing slash appended. This ensures directory-style game URLs always resolve correctly.
+
+2. **Index file resolution** — If `{subpath}` is empty or ends with `/`, the server appends `index.html` to target the game's entry point.
+
+3. **Path normalisation** — The resolved path is sanitised with `path.normalize()` and any leading `../` sequences are stripped, preventing directory traversal attacks from reaching files outside `.cache/games/`.
+
+4. **Cache lookup** — The server checks `.cache/games/{normalized_path}` on disk:
+   - **Cache hit** — The file is streamed directly with `Content-Type` inferred from the extension and `Cache-Control: public, max-age=86400`.
+   - **Cache miss** — Continue to step 5.
+
+5. **GitLab fetch** — The server requests the asset from:
+   ```
+   https://gitlab.com/barryjensen-dev/monkeygg2/-/raw/main/games/{normalized_path}
+   ```
+   If GitLab returns a non-2xx status, the proxy responds with the same HTTP status code and the message `"Failed to load asset from GitLab ({status})"`.
+
+6. **Async cache write** — The response buffer is written to `.cache/games/{normalized_path}` in the background (non-blocking). The buffer is returned to the caller immediately without waiting for the write to complete.
+
+## Request parameters
+
+<ParamField path="subpath" type="string" required>
+  The path to the game or asset relative to the `games/` directory in the MonkeyGG2 repository. Examples: `1v1-lol/`, `1v1-lol/logo.png`, `flash/`.
+</ParamField>
+
+## Response headers
+
+All responses — whether served from cache or fetched live — include the following headers:
+
+| Header | Value |
+|--------|-------|
+| `Access-Control-Allow-Origin` | `*` |
+| `Access-Control-Allow-Methods` | `GET, OPTIONS` |
+| `Cross-Origin-Opener-Policy` | `same-origin-allow-popups` |
+| `Cache-Control` | `public, max-age=86400` |
+| `Content-Type` | Inferred from file extension (see table below) |
+
+## Supported MIME types
+
+The server maps file extensions to MIME types using a static lookup table. Any extension not listed below falls back to `application/octet-stream`.
+
+| Extension(s) | MIME type |
+|---|---|
+| `.html`, `.htm` | `text/html; charset=utf-8` |
+| `.js`, `.mjs` | `application/javascript; charset=utf-8` |
+| `.css` | `text/css; charset=utf-8` |
+| `.json`, `.jsonc` | `application/json; charset=utf-8` |
+| `.txt` | `text/plain; charset=utf-8` |
+| `.xml` | `application/xml` |
+| `.png` | `image/png` |
+| `.jpg`, `.jpeg` | `image/jpeg` |
+| `.gif` | `image/gif` |
+| `.svg` | `image/svg+xml` |
+| `.ico` | `image/x-icon` |
+| `.webp` | `image/webp` |
+| `.wasm` | `application/wasm` |
+| `.swf` | `application/x-shockwave-flash` |
+| `.mp3` | `audio/mpeg` |
+| `.ogg` | `audio/ogg` |
+| `.wav` | `audio/wav` |
+| `.ttf` | `font/ttf` |
+| `.woff` | `font/woff` |
+| `.woff2` | `font/woff2` |
+| `.data`, `.mem`, `.bin`, `.unityweb` | `application/octet-stream` |
+
+## URL examples
+
+### HTML5 game — directory index
+
+```
+GET /games/1v1-lol/
+```
+
+The trailing slash signals a directory. The server resolves the path to `1v1-lol/index.html`, checks the cache, and either streams the cached file or fetches it from GitLab.
+
+```bash
+curl https://your-nexxus-host/games/1v1-lol/
+```
+
+### HTML5 game — named asset
+
+```
+GET /games/1v1-lol/logo.png
+```
+
+Fetches or caches the PNG logo bundled with the 1v1.LOL game directory.
+
+```bash
+curl -o logo.png https://your-nexxus-host/games/1v1-lol/logo.png
+```
+
+### Flash game page
+
+```
+GET /games/flash/?game=achievement-unlocked
+```
+
+Serves the Flash game shell page. The `?game=` query string is handled client-side by the game page's JavaScript — the proxy strips query parameters before cache key and GitLab URL construction, so the upstream path resolves to `flash/index.html`.
+
+```bash
+curl "https://your-nexxus-host/games/flash/?game=achievement-unlocked"
+```
+
+### Redirect example
+
+```
+GET /games/1v1-lol
+```
+
+Because `1v1-lol` has no file extension and no trailing slash, the server responds:
+
+```
+HTTP/1.1 301 Moved Permanently
+Location: /games/1v1-lol/
+```
+
+### Upstream error
+
+If the asset does not exist in the GitLab repository:
+
+```
+HTTP/1.1 404 Not Found
+
+Failed to load asset from GitLab (404)
+```
+
+## Error responses
+
+| Condition | HTTP status | Body |
+|-----------|------------|------|
+| Asset not found in GitLab | `404` | `Failed to load asset from GitLab (404)` |
+| GitLab rate-limited or unavailable | `429` / `503` | `Failed to load asset from GitLab ({status})` |
+| Unexpected server-side exception | `500` | `Internal game proxy error: {message}` |
+
+<Tip>
+  The `.cache/games/` directory grows over time as new assets are requested. To free disk space, delete the directory — all assets will simply be re-fetched from GitLab on the next request and cached again automatically. No data is permanently lost.
+</Tip>
+
+<Warning>
+  Flash (`.swf`) content requires the Adobe Flash Player plugin, which reached end-of-life in December 2020 and is blocked by all modern browsers by default. Flash games served through this proxy will only be playable in environments where Flash is explicitly re-enabled, such as through browser extensions like Ruffle or a dedicated standalone player.
+</Warning>

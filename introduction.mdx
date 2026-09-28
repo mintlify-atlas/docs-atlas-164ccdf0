@@ -1,0 +1,88 @@
+---
+title: "Nexxus: Self-Hosted Web OS & Unblocked Gaming Platform"
+sidebarTitle: "Introduction"
+description: "Nexxus is a self-hosted web OS and unblocked gaming platform featuring 177+ HTML5 and Flash games, Gemini AI chat, a class schedule tracker, and real-time visitor telemetry."
+---
+
+Nexxus is a self-hosted web operating system and unblocked gaming platform built for environments where access to games and tools is restricted. Rendered entirely in a striking black-and-white monochrome aesthetic — pure `bg-black` canvas, `text-zinc-100` typography, crisp `border-zinc-800` dividers, and white-on-black selection highlights — it delivers a focused, distraction-free interface that feels more like a terminal dashboard than a typical game portal. This page covers the platform's architecture, its five major subsystems, key technical facts, and the keyboard shortcuts that power-users need to know.
+
+## Architecture
+
+Nexxus is a full-stack TypeScript application. The **backend** is an Express + Node.js server (`server.ts`) that handles game asset proxying, Gemini AI chat, and visitor telemetry. The **frontend** is a React 19 single-page application (SPA) written in TypeScript, bundled by **Vite 8** with the `@vitejs/plugin-react` plugin and styled using **Tailwind CSS v4**. In development, Express delegates all SPA requests to Vite's middleware. In production, Express serves the pre-built `dist/` folder as static files and falls back to `index.html` for client-side routing.
+
+```
+Browser ──► Express (server.ts :3000)
+               │
+               ├─ /api/chat          ──► Google Gemini AI (@google/genai)
+               ├─ /api/telemetry/*   ──► In-memory session store → .cache/sessions.json
+               ├─ /games/*           ──► Disk cache (.cache/games/) → GitLab upstream
+               └─ /*                 ──► Vite dev middleware (dev) / dist/ (prod)
+```
+
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js 18+ |
+| Server framework | Express 4 |
+| Frontend library | React 19 + TypeScript |
+| Bundler | Vite 8 |
+| Styling | Tailwind CSS v4 |
+| AI SDK | `@google/genai` v2 |
+| Icons | Lucide React |
+| Animations | Motion (Framer Motion v12) |
+| Build tool (server) | esbuild |
+
+## Navigation Tabs
+
+The top navigation bar exposes three primary tabs that switch the main content area without a full page reload:
+
+- **Games** — the default view; browse, search, filter, and launch the full game library.
+- **Schedule** — a class schedule tracker where users add periods with times, days, teacher names, and room numbers.
+- **Chat** — the Nexxus AI Chat powered by Google Gemini, accessible with multiple AI personas.
+
+## Five Major Subsystems
+
+<CardGroup cols={2}>
+  <Card title="Games Library" icon="gamepad-2">
+    177+ HTML5 and Flash titles sourced from the **MonkeyGG2** preservation archive on GitLab. Assets are proxied through `/games/*` and disk-cached in `.cache/games/` so repeat loads are instant and bandwidth costs are minimal. Categories span action, arcade, platformer, puzzle, driving, sports, idle, and Flash.
+  </Card>
+  <Card title="AI Chat" icon="sparkles">
+    A full-featured chat interface backed by the **Google Gemini** API (`/api/chat`). Supports multiple selectable AI personas (Oracle, Cyber, Sentinel, Hunter), conversation history, and Markdown rendering. Falls back through a candidate model list — `gemini-3-flash-preview` → `gemini-3.5-flash` → `gemini-3.6-flash` → `gemini-3.8-flash` — if a model endpoint is unavailable.
+  </Card>
+  <Card title="Schedule Tracker" icon="calendar">
+    A persistent class schedule builder stored in `localStorage`. Each entry holds a class name, start/end times (24-hour format), active days of the week, teacher name, room number, an optional color token, and free-form notes. A live "current period" indicator highlights the active class in real time.
+  </Card>
+  <Card title="Wallpaper Engine" icon="image">
+    A community-driven wallpaper system integrated into the web OS layer. Users can submit, browse, and apply dynamic or static wallpapers that theme the entire platform. Wallpaper generation leverages Gemini AI for AI-assisted community content.
+  </Card>
+  <Card title="Visitor Telemetry Console" icon="terminal">
+    A real-time admin dashboard (opened with **Shift+O**) that displays all visitor sessions tracked by the `/api/telemetry/*` endpoints. Admins can see IP addresses, browsers, OS, current game, session duration, and online/offline status — and can silently kick individual visitors or all visitors back to the home page.
+  </Card>
+</CardGroup>
+
+## Key Technical Facts
+
+- **Default port:** `3000`. Customize with the `PORT` environment variable.
+- **Game asset cache:** `.cache/games/` — created automatically at server startup. Cached files are served with `Cache-Control: public, max-age=86400`.
+- **Session persistence:** `.cache/sessions.json` — stores the last 500 visitor sessions across server restarts. Previous `online` sessions are automatically marked `closed` on startup.
+- **Favorites & history:** Stored in the browser's `localStorage` under `nexxus_favorites` and `nexxus_recent_history`. They survive page refreshes but are scoped to the browser.
+- **Intro sequence:** A cinematic fullscreen intro plays on the first visit of each browser session (`sessionStorage` flag `nexxus_intro_seen`). It does not repeat on subsequent tab navigations.
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `/` | Focus the search bar (when not typing in an input) |
+| `Escape` | Exit the active game and return to the library, or clear the current search query |
+| `Shift+O` | Toggle the Visitor Telemetry / Admin Console overlay |
+| `Escape` (during intro) | Skip the intro sequence immediately |
+
+## Where to Go Next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get Nexxus running locally in under five minutes — prerequisites, environment setup, dev server, and production build.
+  </Card>
+  <Card title="Configuration" icon="settings" href="/configuration">
+    All environment variables, runtime cache paths, session cleanup behaviour, and the game proxy upstream explained.
+  </Card>
+</CardGroup>

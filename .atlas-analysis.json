@@ -1,0 +1,103 @@
+{
+  "projectType": "saas",
+  "projectName": "Nexxus",
+  "projectDescription": "Nexxus is a full-featured unblocked gaming platform and web OS featuring a curated arcade of 177+ HTML5 and Flash games, a Gemini-powered AI chat assistant, a class schedule/bell tracker, a community wallpaper engine with moderation, and a real-time visitor telemetry console for administrators.",
+  "theme": "luma",
+  "primaryColor": "#ffffff",
+  "lightColor": "#f4f4f5",
+  "darkColor": "#09090b",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/games-library",
+              "features/ai-chat",
+              "features/schedule-tracker",
+              "features/wallpaper-engine"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "admin/visitor-console",
+              "admin/wallpaper-moderation",
+              "admin/session-management"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/self-hosting",
+              "deployment/environment-variables",
+              "deployment/production-build"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Telemetry API",
+            "pages": [
+              "api/telemetry/overview",
+              "api/telemetry/open",
+              "api/telemetry/heartbeat",
+              "api/telemetry/close",
+              "api/telemetry/sessions",
+              "api/telemetry/kick"
+            ]
+          },
+          {
+            "group": "Chat API",
+            "pages": [
+              "api/chat/overview",
+              "api/chat/send",
+              "api/chat/status"
+            ]
+          },
+          {
+            "group": "Game Proxy",
+            "pages": [
+              "api/games/proxy"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Curated arcade library of 177+ unblocked HTML5 and Flash games with search, filtering by category, sorting, favorites, and recently played history",
+    "Gemini AI-powered chat assistant with multiple model fallback support, persistent chat history, and starter prompts",
+    "Class schedule and live bell tracker with customizable class blocks, weekday assignments, and countdown timers",
+    "Community wallpaper engine with user submissions, admin moderation (approve/reject/delete), and a public wallpaper store",
+    "Real-time visitor telemetry console with live session tracking, IP/device/OS detection, heartbeat polling, and kick controls",
+    "Game proxy server that fetches and locally caches games from the MonkeyGG2 GitLab repository with CORS support",
+    "Cinematic animated intro sequence with session-based display (once per tab session)",
+    "Black-and-white monochrome UI design with keyboard shortcuts (/, Escape, Shift+O) and fullscreen support"
+  ],
+  "publicApiSurface": [
+    "POST /api/telemetry/open — Register a new visitor session",
+    "POST /api/telemetry/heartbeat — Update session activity and check for kick signals",
+    "POST /api/telemetry/close — Close an active visitor session",
+    "GET /api/telemetry/sessions — Retrieve all recorded sessions with aggregate stats",
+    "DELETE /api/telemetry/sessions — Clear all session logs",
+    "POST /api/telemetry/kick — Kick visitor(s) back to the home page",
+    "GET /api/chat/status — Get active Gemini AI configuration and supported models",
+    "POST /api/chat — Send a chat request to the Gemini AI backend with model fallback",
+    "GET /api/health — Server health check",
+    "GET /games/* — Proxy and cache game assets from the MonkeyGG2 GitLab repository"
+  ]
+}

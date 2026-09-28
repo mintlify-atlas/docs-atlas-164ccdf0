@@ -1,0 +1,172 @@
+---
+title: "AI Chat Assistant — Powered by Google Gemini"
+sidebarTitle: "AI Chat"
+description: "Ask questions, debug code, get writing help, and request game tips using Nexxus's built-in AI assistant, powered by Google Gemini with automatic model fallback."
+---
+
+The Nexxus AI Chat tab gives you a full-featured conversational AI assistant right inside the platform — no separate app or account required. It is powered by Google Gemini through the `@google/genai` SDK, with an automatic multi-model fallback chain to ensure high availability even when a specific model endpoint is unavailable.
+
+## How It Works
+
+All chat requests are routed through the Nexxus backend:
+
+- **Endpoint:** `POST /api/chat`
+- **Payload:** The last 10 messages of the conversation, plus the system instruction and the active API key.
+- **Response:** JSON with `text` (the AI reply) and `model` (which model handled the request).
+
+### Model Fallback Chain
+
+When one model is unavailable or times out, the backend automatically tries the next in sequence:
+
+1. `gemini-3-flash-preview`
+2. `gemini-3.5-flash`
+3. `gemini-3.5-flash-lite`
+4. `gemini-3.6-flash`
+5. `gemini-3.8-flash`
+
+Each model attempt has a **25-second timeout** before the next fallback is tried. The model that ultimately responded is recorded in the `ChatMessage` object as `modelUsed`.
+
+<Note>
+  A valid `GEMINI_API_KEY` environment variable must be set on the server for the `/api/chat` endpoint to function. Without it, all requests will fail regardless of the client-side API key setting.
+</Note>
+
+---
+
+## System Prompt
+
+The assistant always operates under the following system instruction, which shapes its tone, scope, and formatting style:
+
+> You are a helpful, intelligent, and friendly AI assistant. Answer questions clearly, accurately, and thoughtfully. You can assist with general knowledge, schoolwork, writing, programming, problem-solving, gaming tips, and creative ideas. Use clean markdown formatting with headers, bullet points, and code blocks where appropriate.
+
+---
+
+## Chat Personas
+
+The `ChatPersona` type defines four available personality modes for the assistant:
+
+| Persona | Token |
+|---|---|
+| Oracle | `oracle` |
+| Cyber | `cyber` |
+| Sentinel | `sentinel` |
+| Hunter | `hunter` |
+
+---
+
+## Starter Prompts
+
+When you open a fresh chat session, four built-in starter prompts appear to help you get going quickly:
+
+<CardGroup cols={2}>
+  <Card title="Explain a Concept" icon="lightbulb">
+    _"Explain how machine learning and neural networks work using a simple everyday analogy."_
+  </Card>
+  <Card title="Code & Debug" icon="code">
+    _"Write a clean JavaScript function to find the longest palindrome in a string with explanation."_
+  </Card>
+  <Card title="Writing & Summary" icon="pen-nib">
+    _"Help me draft a concise and persuasive 3-paragraph email to pitch a new student club idea."_
+  </Card>
+  <Card title="Game Recommendations" icon="gamepad">
+    _"What are some great unblocked games for quick 10-minute breaks, and what strategies work best in them?"_
+  </Card>
+</CardGroup>
+
+Clicking any starter prompt sends it immediately as your first message.
+
+---
+
+## ChatMessage Type
+
+Every message in the conversation — both yours and the AI's — is stored as a `ChatMessage` object:
+
+```typescript
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  content: string;
+  timestamp: number;
+  modelUsed?: string;
+  isError?: boolean;
+}
+```
+
+| Field | Description |
+|---|---|
+| `id` | Unique message identifier (e.g. `user-1718000000000`) |
+| `role` | `"user"` for your messages, `"model"` for AI replies |
+| `content` | Full message text — supports markdown formatting |
+| `timestamp` | Unix timestamp in milliseconds |
+| `modelUsed` | Which Gemini model generated this response (AI messages only) |
+| `isError` | `true` if the message represents a connection or API failure |
+
+---
+
+## Persistence
+
+Chat history is automatically saved to `localStorage` so your conversation survives page refreshes:
+
+- **Storage key:** `nexxus_chat_history`
+- **Format:** JSON array of `ChatMessage` objects
+- Only the most recent **50 messages** are persisted to keep storage usage low.
+- Click **New Chat** in the header to wipe the history and start fresh.
+
+---
+
+## API Key Management
+
+<Tabs>
+  <Tab title="Default Key">
+    Nexxus ships with a default Gemini API key embedded in the app. It works out of the box — no setup required for most users.
+  </Tab>
+  <Tab title="Custom Key Override">
+    If you have your own Google Gemini API key, you can override the default:
+
+    <Steps>
+      <Step title="Open API Settings">
+        Click the **Settings (⚙)** button in the top-right of the chat header.
+      </Step>
+      <Step title="Paste your key">
+        Enter your Gemini API key in the **Custom Key Override** field. Leave it blank to revert to the default.
+      </Step>
+      <Step title="Save">
+        Click **Save**. Your key is stored in `localStorage` under `nexxus_gemini_key` and used for all future requests.
+      </Step>
+      <Step title="Reset">
+        Click **Reset to Default** at any time to remove your custom key and return to the built-in default.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+<Warning>
+  Your custom API key is stored in plain text in `localStorage`. Do not enter a key that has billing enabled on a shared or public device.
+</Warning>
+
+---
+
+## Chat Features
+
+<CardGroup cols={2}>
+  <Card title="Markdown Rendering" icon="markdown">
+    AI responses render headers, bullet lists, numbered lists, bold text, inline code, and fenced code blocks with a copy button.
+  </Card>
+  <Card title="Export Chat" icon="download">
+    Download your entire conversation as a `.md` markdown file via the **Export** button in the header.
+  </Card>
+  <Card title="Copy Messages" icon="copy">
+    Hover any AI response bubble to reveal a copy icon — click it to copy the full message text to your clipboard.
+  </Card>
+  <Card title="Keyboard Send" icon="keyboard">
+    Press `Enter` to send a message. Use `Shift + Enter` to insert a new line without sending.
+  </Card>
+</CardGroup>
+
+---
+
+## localStorage Reference
+
+| Key | Contents |
+|---|---|
+| `nexxus_chat_history` | JSON array of the last 50 `ChatMessage` objects |
+| `nexxus_gemini_key` | Custom Gemini API key override (absent if using the default) |

@@ -1,0 +1,77 @@
+---
+title: "GET /api/chat/status — Check Gemini AI Configuration"
+sidebarTitle: "Chat Status"
+description: "Retrieve the active Gemini API key, masked and unmasked, plus the default model and full list of supported Gemini models available for chat."
+---
+
+The `GET /api/chat/status` endpoint returns a snapshot of the server's current Gemini AI configuration. It is intended for debugging and administrative use — confirming which API key is active, which model is selected by default, and which models are available for the fallback sequence.
+
+## Endpoint
+
+```
+GET /api/chat/status
+```
+
+No request body or query parameters are required.
+
+<Warning>
+  This endpoint exposes the raw Gemini API key in the `fullKey` field. Anyone who can reach this URL can read the key and use it to make direct calls to Google's Gemini API, potentially exhausting your quota or incurring unexpected charges. **Protect or disable this endpoint in any public-facing deployment** — for example, by placing it behind an authentication middleware or restricting it to internal network access only.
+</Warning>
+
+## Response fields
+
+### HTTP 200
+
+<ResponseField name="status" type="string">
+  Always `"online"` when the server is running and the endpoint is reachable.
+</ResponseField>
+
+<ResponseField name="defaultKey" type="string">
+  The full Gemini API key configured on the server. Identical to `fullKey`. Present for backwards compatibility.
+</ResponseField>
+
+<ResponseField name="activeKeyMasked" type="string">
+  A partially-redacted version of the active key, showing the first six characters, an ellipsis, and the last four characters (e.g. `"AQ.Ab8...9ew"`). Safe to log or display in a UI.
+</ResponseField>
+
+<ResponseField name="fullKey" type="string">
+  The complete, unredacted Gemini API key currently in use. **Treat this value as a secret.**
+</ResponseField>
+
+<ResponseField name="defaultModel" type="string">
+  The Gemini model used when no `model` field is supplied in a `POST /api/chat` request. Currently `"gemini-3-flash-preview"`.
+</ResponseField>
+
+<ResponseField name="supportedModels" type="array">
+  The list of Gemini model identifiers that the server recognises and includes in its fallback sequence. The server will try models from this list in order if the initially requested model fails.
+</ResponseField>
+
+## Example
+
+### cURL
+
+```bash
+curl https://your-nexxus-host/api/chat/status
+```
+
+### Response
+
+```json
+{
+  "status": "online",
+  "defaultKey": "AQ.Ab8RN6Kn1YHjueWL522fpolBogEn1sYCdY0Pzfmj0ISIIUM9ew",
+  "activeKeyMasked": "AQ.Ab8...9ew",
+  "fullKey": "AQ.Ab8RN6Kn1YHjueWL522fpolBogEn1sYCdY0Pzfmj0ISIIUM9ew",
+  "defaultModel": "gemini-3-flash-preview",
+  "supportedModels": [
+    "gemini-3-flash-preview",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.8-flash"
+  ]
+}
+```
+
+<Note>
+  The `supportedModels` array reflects the models listed in the status response. The full fallback sequence used by `POST /api/chat` also includes `gemini-3.5-flash-lite`, which is injected server-side as a mid-sequence candidate but not surfaced here. See the [Chat API Overview](/api/chat/overview) for the complete ordered list.
+</Note>

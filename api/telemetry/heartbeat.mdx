@@ -1,0 +1,186 @@
+---
+title: "POST /api/telemetry/heartbeat — Update Session Activity"
+sidebarTitle: "Heartbeat"
+description: "Keep a session alive, update the visitor's current activity string, and check whether an admin kick is pending. Called automatically every 2.5 seconds by the client SDK."
+---
+
+`POST /api/telemetry/heartbeat` serves two purposes simultaneously: it refreshes the session's `lastHeartbeat` timestamp to keep it from being auto-closed by the background cleanup job, and it returns a `kicked` flag that tells the client whether an admin has issued a kick command. The Nexxus client SDK fires this request every **2.5 seconds** to ensure kick signals are delivered within a predictable, short window.
+
+## Request
+
+```http
+POST /api/telemetry/heartbeat
+Content-Type: application/json
+```
+
+### Body Parameters
+
+<ParamField body="id" type="string" required>
+  The session ID returned by `POST /api/telemetry/open`. If this ID does not
+  match any known session, the server returns `success: false` rather than an
+  error status code.
+</ParamField>
+
+<ParamField body="currentGame" type="string">
+  The visitor's current activity string, e.g. `"Playing 1v1.LOL"` or
+  `"Browsing Library"`. When provided, this value overwrites the stored
+  `currentGame` field on the session. Omit this parameter to leave the stored
+  value unchanged.
+</ParamField>
+
+## Response
+
+### 200 OK — Session Found
+
+```json
+{
+  "success": true,
+  "duration": 42,
+  "kicked": false
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` when the session ID was found in the in-memory store.
+</ResponseField>
+
+<ResponseField name="duration" type="number">
+  The total elapsed session time in **whole seconds**, calculated as
+  `Math.round((now - openedAt) / 1000)`, with a minimum value of `1`.
+</ResponseField>
+
+<ResponseField name="kicked" type="boolean">
+  `true` if an admin has issued a kick against this session since the last
+  heartbeat. The client should respond by navigating the visitor back to the
+  home page. See the [kick flow](#kick-flow) section below.
+</ResponseField>
+
+### 200 OK — Session Not Found
+
+```json
+{
+  "success": false,
+  "message": "Session not found"
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `false` when no session matches the provided `id`.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  A human-readable explanation: `"Session not found"`.
+</ResponseField>
+
+### 500 Internal Server Error
+
+```json
+{
+  "error": "Unexpected error message"
+}
+```
+
+## Kick Flow
+
+<Note>
+  When `kicked` is `true`, the server **atomically clears the kick flag** as
+  part of the same response. This means:
+
+  1. The server sets `session.kicked = false` and resets `session.currentGame`
+     to `"Viewing Library"` before sending the response.
+  2. All subsequent heartbeats from the same session will receive
+     `kicked: false` — the signal is delivered exactly once.
+  3. The client should silently navigate the visitor to the home page without
+     displaying any alert, modal, or notification. The transition appears
+     natural to the visitor.
+  4. The client SDK dispatches a `nexxus:silent-kick` `CustomEvent` on `window`
+     and calls any callbacks registered via `telemetry.onKick(fn)`.
+</Note>
+
+## Examples
+
+### curl — standard heartbeat
+
+```bash
+curl -X POST http://localhost:3000/api/telemetry/heartbeat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "sess_1703000000000_abc123",
+    "currentGame": "Playing 1v1.LOL"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "duration": 87,
+  "kicked": false
+}
+```
+
+### curl — heartbeat with a pending kick
+
+```bash
+curl -X POST http://localhost:3000/api/telemetry/heartbeat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "sess_1703000000000_abc123",
+    "currentGame": "Playing Shell Shockers"
+  }'
+```
+
+**Response when a kick was issued:**
+
+```json
+{
+  "success": true,
+  "duration": 143,
+  "kicked": true
+}
+```
+
+### curl — unknown session ID
+
+```bash
+curl -X POST http://localhost:3000/api/telemetry/heartbeat \
+  -H "Content-Type: application/json" \
+  -d '{ "id": "sess_nonexistent_id" }'
+```
+
+**Response:**
+
+```json
+{
+  "success": false,
+  "message": "Session not found"
+}
+```
+
+### Client SDK — listening for kicks
+
+```typescript
+import { telemetry } from '@/utils/telemetry';
+
+// Register a callback that fires when the server signals a kick
+const unsubscribe = telemetry.onKick(() => {
+  // Navigate back to the home/library page
+  router.push('/');
+});
+
+// Clean up on component unmount
+onUnmounted(() => unsubscribe());
+```
+
+### Client SDK — updating the current game
+
+The `updateGame` method fires an immediate out-of-band heartbeat and checks for a kick at the same time:
+
+```typescript
+// Visitor opens a game
+await telemetry.updateGame('1v1.LOL');
+
+// Visitor closes the game
+await telemetry.updateGame(null); // resets to "Browsing Library"
+```

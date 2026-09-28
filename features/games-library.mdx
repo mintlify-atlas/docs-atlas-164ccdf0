@@ -1,0 +1,207 @@
+---
+title: "Games Library — Browse, Filter & Play Titles"
+sidebarTitle: "Games Library"
+description: "Explore the full Nexxus games library. Filter by category, sort, search by alias, manage favorites, and launch HTML5 or Flash titles in the built-in player."
+---
+
+The Nexxus games library is the heart of the platform — a curated archive of HTML5 and Flash titles you can browse, search, filter, sort, and launch directly in the browser without any installs or plugins.
+
+## Game Data Model
+
+Every title in the library is described by the `Game` interface:
+
+```typescript
+export interface Game {
+  id: string;
+  title: string;
+  path: string;
+  aliases: string[];
+  categories: string[];
+  type: "html5" | "flash";
+  thumbnail?: string;
+  featured?: boolean;
+}
+```
+
+| Field | Description |
+|---|---|
+| `id` | Unique slug used for favorites and history storage |
+| `title` | Display name shown on the card and in the player |
+| `path` | Relative path used to build the iframe URL |
+| `aliases` | Alternative names searched alongside the title |
+| `categories` | Array of genre tags used for filtering |
+| `type` | `"html5"` or `"flash"` — affects iframe URL format |
+| `thumbnail` | Optional preview image; falls back to a monogram card |
+| `featured` | Marks a title as a highlighted/hot pick |
+
+---
+
+## Browsing & Filtering
+
+### Category Filters
+
+The `CategoryFilter` type powers the category pill bar. Each filter maps to one or more raw `categories` tags on the game object:
+
+<CardGroup cols={2}>
+  <Card title="All" icon="grid-2">
+    Displays the complete library with no category restriction.
+  </Card>
+  <Card title="Featured" icon="bolt">
+    Games where `featured === true` — hand-picked hot picks.
+  </Card>
+  <Card title="Favorites" icon="star">
+    Games you have starred, persisted in `localStorage`.
+  </Card>
+  <Card title="Recent" icon="clock">
+    Games you have launched, ordered by last-played timestamp.
+  </Card>
+  <Card title="Flash Classics" icon="film">
+    Titles with `type === "flash"` — retro Flash games.
+  </Card>
+  <Card title="Action & War" icon="sword">
+    Matches categories: `action`, `battle`, `war`, `shooter`.
+  </Card>
+  <Card title="Arcade & Runner" icon="joystick">
+    Matches categories: `arcade`, `runner`.
+  </Card>
+  <Card title="Platformer" icon="person-running">
+    Matches the `platformer` category exactly.
+  </Card>
+  <Card title="Puzzle & Logic" icon="puzzle-piece">
+    Matches categories: `puzzle`, `logic`, `physics`.
+  </Card>
+  <Card title="Driving & Drift" icon="car">
+    Matches categories: `driving`, `drift`, `racing`.
+  </Card>
+  <Card title="Sports" icon="football">
+    Matches categories: `sports`, `basket`, `boxing`.
+  </Card>
+  <Card title="Idle & Clicker" icon="hand-pointer">
+    Matches categories: `idle`, `clicker`.
+  </Card>
+</CardGroup>
+
+### Sort Options
+
+Use the sort dropdown in the filter bar to control ordering. The `SortOption` type supports four values:
+
+| Value | Label | Behaviour |
+|---|---|---|
+| `popular` | Popular / Featured | Featured titles first, then favorites, then alphabetical (default) |
+| `az` | Alphabetical (A – Z) | `localeCompare` ascending |
+| `za` | Reverse (Z – A) | `localeCompare` descending |
+| `recent` | Recently Played | Most recently launched first by timestamp |
+
+### View Modes
+
+Toggle between two layout modes using the grid/list buttons in the filter bar:
+
+<CardGroup cols={2}>
+  <Card title="Grid View" icon="grid-2">
+    Displays games as thumbnail cards in a responsive multi-column grid (2 → 6 columns depending on screen width). Each card shows the thumbnail, type badge, HOT badge for featured titles, and a star button.
+  </Card>
+  <Card title="List View" icon="list">
+    Displays games as compact rows in a single-column table — ideal for scanning a long list quickly by title.
+  </Card>
+</CardGroup>
+
+---
+
+## Search
+
+The search bar (keyboard shortcut `/`) performs a **case-insensitive substring match** across three fields simultaneously:
+
+- `game.title`
+- `game.aliases[]` — every alternate name in the aliases array
+- `game.categories[]` — allows searching by genre tag directly
+
+If a game passes the search filter **and** the active category filter, it appears in results. The live counter in the top-right of the filter bar shows `filtered / total` titles.
+
+<Note>
+  Search and category filters stack — selecting "Puzzle & Logic" then typing "physics" will only return puzzle/logic/physics games whose title, alias, or category also matches the query.
+</Note>
+
+---
+
+## Favorites
+
+Star any game to add it to your favorites list. Favorites are persisted across sessions:
+
+- **Storage key:** `nexxus_favorites`
+- **Format:** JSON array of game ID strings, e.g. `["slope","retro-bowl","2048"]`
+- Toggle the star button on any game card, in the list view, or in the active player to add/remove a title.
+- The **Favorites Only** shortcut in the Navbar toggles the `favorites` category filter directly.
+
+---
+
+## Recently Played History
+
+Each time you launch a game, Nexxus records a timestamp:
+
+- **Storage key:** `nexxus_recent_history`
+- **Format:** JSON object mapping game ID → Unix timestamp (ms), e.g. `{"slope": 1718000000000}`
+- Select the **Recent** category filter to see your play history, sorted newest-first.
+- Switching to the `recent` sort option within any other category also bubbles recently-played games to the top.
+
+---
+
+## Game Player
+
+Clicking any game card opens the built-in game player — a full-width theater view with controls along the top bar.
+
+### iframe URL Format
+
+| Type | URL Pattern |
+|---|---|
+| HTML5 | `/games/{game.path}/` (trailing slash) |
+| Flash | `/games/{game.path}` (no trailing slash) |
+
+### Player Controls
+
+<CardGroup cols={2}>
+  <Card title="Archive ←" icon="arrow-left">
+    Returns to the games library without losing your search or filter state.
+  </Card>
+  <Card title="Star ★" icon="star">
+    Toggles the current game in/out of your favorites list.
+  </Card>
+  <Card title="Reload ↺" icon="rotate-right">
+    Remounts the iframe — useful if a game freezes or fails to load.
+  </Card>
+  <Card title="Next (Random)" icon="dice">
+    Launches a random game from the current filtered list.
+  </Card>
+  <Card title="Fullscreen ⛶" icon="expand">
+    Requests browser fullscreen on the game container. Press `Escape` to exit.
+  </Card>
+  <Card title="New Tab ↗" icon="arrow-up-right-from-square">
+    Opens the current game in a dedicated browser tab — ideal for bypassing school blockers on the main URL.
+  </Card>
+</CardGroup>
+
+### Related Games
+
+The bottom bar beneath the player automatically surfaces up to four **similar titles** — games that share at least one category tag with the active game. Clicking any suggestion swaps the iframe immediately.
+
+---
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|---|---|
+| `/` | Focus the search input (works from anywhere on the library page) |
+| `Escape` | If a game is active → return to library; if search has text → clear the query |
+| `Escape` (in intro) | Skip the cinematic intro sequence |
+
+<Tip>
+  The **random game** button (in the navbar and in the player's top bar) always picks from the **currently filtered list** — not the full catalog. Use this to your advantage: filter to a genre like "Puzzle & Logic" first, then hit Random to get a surprise puzzle game every time.
+</Tip>
+
+---
+
+## localStorage Reference
+
+| Key | Type | Contents |
+|---|---|---|
+| `nexxus_favorites` | `string[]` (JSON) | Array of favorited game IDs |
+| `nexxus_recent_history` | `Record<string, number>` (JSON) | Map of game ID → last-played timestamp (ms) |

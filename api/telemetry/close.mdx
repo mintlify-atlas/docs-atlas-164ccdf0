@@ -1,0 +1,119 @@
+---
+title: "POST /api/telemetry/close — Close a Visitor Session"
+sidebarTitle: "Close Session"
+description: "Mark a visitor session as closed and record its final duration. Designed to be called via navigator.sendBeacon on beforeunload and pagehide for reliable tab-close detection."
+---
+
+`POST /api/telemetry/close` transitions an active session to the `closed` state, records the `closedAt` timestamp, and computes the final `durationSeconds` value. The endpoint is designed to work reliably even during page unload — the client SDK sends it via `navigator.sendBeacon`, which the browser guarantees will complete even after the page has been torn down. A plain `fetch` with `keepalive: true` is used as a fallback in environments where `sendBeacon` is unavailable.
+
+<Note>
+  If a session is never explicitly closed — for example, because the visitor's
+  connection dropped — the server's background cleanup job will mark it
+  `closed` automatically after **25 seconds** of no heartbeat activity. The
+  final `closedAt` in that case is set to `lastHeartbeat`, not the actual
+  disconnect time.
+</Note>
+
+## Request
+
+```http
+POST /api/telemetry/close
+Content-Type: application/json
+```
+
+### Body Parameters
+
+<ParamField body="id" type="string" required>
+  The session ID returned by `POST /api/telemetry/open`. If this ID is absent
+  or does not match a known session, the server still returns
+  `{ "success": true }` — the endpoint is idempotent so that redundant
+  `sendBeacon` calls (e.g. from both `beforeunload` and `pagehide`) do not
+  cause errors.
+</ParamField>
+
+## Response
+
+### 200 OK
+
+```json
+{
+  "success": true
+}
+```
+
+<ResponseField name="success" type="boolean">
+  Always `true`. The server returns this even when the provided session ID is
+  unknown, to prevent errors on stale or duplicate beacon deliveries.
+</ResponseField>
+
+### 500 Internal Server Error
+
+```json
+{
+  "error": "Unexpected error message"
+}
+```
+
+## Examples
+
+### curl
+
+```bash
+curl -X POST http://localhost:3000/api/telemetry/close \
+  -H "Content-Type: application/json" \
+  -d '{ "id": "sess_1703000000000_abc123" }'
+```
+
+**Response:**
+
+```json
+{
+  "success": true
+}
+```
+
+### navigator.sendBeacon (recommended for page unload)
+
+`sendBeacon` does not support setting the `Content-Type` header directly, so wrap the JSON string in a `Blob` with the correct MIME type. The browser will deliver this request in the background even after the page has been destroyed.
+
+```javascript
+const sessionId = sessionStorage.getItem('nexxus_session_id');
+
+window.addEventListener('beforeunload', () => {
+  const payload = JSON.stringify({ id: sessionId });
+  const blob = new Blob([payload], { type: 'application/json' });
+  navigator.sendBeacon('/api/telemetry/close', blob);
+});
+```
+
+<Note>
+  Register the listener on both `beforeunload` **and** `pagehide`. Mobile
+  browsers — particularly Safari on iOS — often fire `pagehide` but not
+  `beforeunload` when the user swipes away a tab. The server handles duplicate
+  close calls gracefully; only the first call updates `closedAt`.
+</Note>
+
+### fetch with keepalive (sendBeacon fallback)
+
+```javascript
+window.addEventListener('beforeunload', () => {
+  const sessionId = sessionStorage.getItem('nexxus_session_id');
+  fetch('/api/telemetry/close', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: sessionId }),
+    keepalive: true,
+  }).catch(() => {});
+});
+```
+
+### Client SDK
+
+The `TelemetryClient` handles all of this automatically. `telemetry.init()` registers both `beforeunload` and `pagehide` listeners that use `sendBeacon` when available and fall back to `fetch` with `keepalive`.
+
+```typescript
+import { telemetry } from '@/utils/telemetry';
+
+// init() registers the close listeners automatically — no manual cleanup needed
+telemetry.init();
+```

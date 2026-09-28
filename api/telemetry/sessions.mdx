@@ -1,0 +1,259 @@
+---
+title: "GET & DELETE /api/telemetry/sessions — Session Records"
+sidebarTitle: "Sessions"
+description: "Retrieve all visitor sessions sorted newest-first with aggregate stats, or permanently clear every session record from memory and disk with a single DELETE request."
+---
+
+This page documents two endpoints that share the `/api/telemetry/sessions` path. The `GET` method returns the full list of recorded sessions alongside aggregate statistics, and is the data source for the Nexxus admin dashboard. The `DELETE` method wipes all session data from memory and from the `.cache/sessions.json` file on disk.
+
+---
+
+## GET /api/telemetry/sessions
+
+Returns all `VisitorSession` records stored in the server's in-memory map, sorted by `openedAt` descending so the most recently opened session appears first. The response also includes a `stats` object with pre-computed aggregate figures.
+
+### Request
+
+```http
+GET /api/telemetry/sessions
+```
+
+No request body or query parameters are accepted.
+
+### Response
+
+#### 200 OK
+
+```json
+{
+  "sessions": [
+    {
+      "id": "sess_1703021893441_7gk2xp",
+      "ip": "203.0.113.42",
+      "device": "Windows PC",
+      "browser": "Chrome 124",
+      "os": "Windows 11 / 10",
+      "openedAt": 1703021893441,
+      "closedAt": null,
+      "lastHeartbeat": 1703021921441,
+      "durationSeconds": 28,
+      "status": "online",
+      "currentGame": "Playing 1v1.LOL",
+      "screen": "1920x1080",
+      "language": "en-US",
+      "kicked": false
+    }
+  ],
+  "stats": {
+    "totalVisits": 47,
+    "onlineNow": 3,
+    "uniqueIps": 12,
+    "avgDurationSeconds": 284
+  }
+}
+```
+
+<ResponseField name="sessions" type="VisitorSession[]">
+  Array of all recorded sessions, newest first.
+
+  <Expandable title="VisitorSession fields">
+    <ResponseField name="id" type="string">
+      Unique session identifier, e.g. `"sess_1703000000000_abc123"`.
+    </ResponseField>
+
+    <ResponseField name="ip" type="string">
+      Client IP address resolved server-side. IPv6-mapped IPv4 addresses are
+      normalised to plain IPv4 form.
+    </ResponseField>
+
+    <ResponseField name="device" type="string">
+      Device model name, e.g. `"Windows PC"`, `"Apple iPhone"`,
+      `"Android Phone / Tablet"`.
+    </ResponseField>
+
+    <ResponseField name="browser" type="string">
+      Browser name with major version, e.g. `"Chrome 124"`,
+      `"Mozilla Firefox"`, `"Microsoft Edge"`.
+    </ResponseField>
+
+    <ResponseField name="os" type="string">
+      Operating system string, e.g. `"Windows 11 / 10"`, `"macOS"`,
+      `"iOS"`, `"Android"`.
+    </ResponseField>
+
+    <ResponseField name="openedAt" type="number">
+      Unix millisecond timestamp when the session was opened.
+    </ResponseField>
+
+    <ResponseField name="closedAt" type="number | null">
+      Unix millisecond timestamp when the session was closed, or `null` if it
+      is still active.
+    </ResponseField>
+
+    <ResponseField name="lastHeartbeat" type="number">
+      Unix millisecond timestamp of the most recent heartbeat received.
+    </ResponseField>
+
+    <ResponseField name="durationSeconds" type="number">
+      Total elapsed time in whole seconds, calculated as
+      `Math.round((now - openedAt) / 1000)` at the time of the last
+      heartbeat or close. Minimum value is `1`.
+    </ResponseField>
+
+    <ResponseField name="status" type='"online" | "closed"'>
+      Current session state. Sessions with no heartbeat for more than 25
+      seconds are automatically transitioned to `"closed"` by the background
+      cleanup job.
+    </ResponseField>
+
+    <ResponseField name="currentGame" type="string">
+      The visitor's last reported activity string, e.g.
+      `"Playing Shell Shockers"` or `"Viewing Library"`. Updated on each
+      heartbeat when the client provides a value.
+    </ResponseField>
+
+    <ResponseField name="screen" type="string">
+      Screen resolution reported by the client, e.g. `"1920x1080"`. Defaults
+      to `"Unknown"` when not provided.
+    </ResponseField>
+
+    <ResponseField name="language" type="string">
+      BCP 47 language tag from the client's `navigator.language`, e.g.
+      `"en-US"`.
+    </ResponseField>
+
+    <ResponseField name="kicked" type="boolean">
+      `true` if a kick is pending for this session. The flag is cleared the
+      moment the session's next heartbeat is processed. This field is
+      typically `false` or absent in the list response because the flag clears
+      within 2.5 seconds.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="stats" type="object">
+  Aggregate statistics computed from the full session list.
+
+  <Expandable title="stats fields">
+    <ResponseField name="totalVisits" type="number">
+      Total number of sessions recorded, including both `online` and `closed`
+      sessions.
+    </ResponseField>
+
+    <ResponseField name="onlineNow" type="number">
+      Count of sessions currently in the `"online"` state.
+    </ResponseField>
+
+    <ResponseField name="uniqueIps" type="number">
+      Count of distinct IP addresses across all recorded sessions.
+    </ResponseField>
+
+    <ResponseField name="avgDurationSeconds" type="number">
+      Mean session duration in whole seconds across all sessions. Returns `0`
+      when no sessions have been recorded.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example
+
+```bash
+curl http://localhost:3000/api/telemetry/sessions
+```
+
+```json
+{
+  "sessions": [
+    {
+      "id": "sess_1703021893441_7gk2xp",
+      "ip": "203.0.113.42",
+      "device": "Windows PC",
+      "browser": "Chrome 124",
+      "os": "Windows 11 / 10",
+      "openedAt": 1703021893441,
+      "closedAt": null,
+      "lastHeartbeat": 1703021921441,
+      "durationSeconds": 28,
+      "status": "online",
+      "currentGame": "Playing 1v1.LOL",
+      "screen": "1920x1080",
+      "language": "en-US"
+    },
+    {
+      "id": "sess_1703018000000_x9m3qr",
+      "ip": "198.51.100.7",
+      "device": "Apple iPhone",
+      "browser": "Safari 17",
+      "os": "iOS",
+      "openedAt": 1703018000000,
+      "closedAt": 1703018420000,
+      "lastHeartbeat": 1703018417500,
+      "durationSeconds": 420,
+      "status": "closed",
+      "currentGame": "Viewing Library",
+      "screen": "390x844",
+      "language": "en-GB"
+    }
+  ],
+  "stats": {
+    "totalVisits": 47,
+    "onlineNow": 3,
+    "uniqueIps": 12,
+    "avgDurationSeconds": 284
+  }
+}
+```
+
+---
+
+## DELETE /api/telemetry/sessions
+
+Clears every session from the in-memory store and deletes the `.cache/sessions.json` persistence file from disk. The action takes effect immediately — the map is emptied synchronously before the response is sent.
+
+<Warning>
+  **This action is irreversible.** All historical session data, including
+  cumulative visit counts, unique IP history, and duration records, will be
+  permanently lost. There is no soft-delete, recycle bin, or confirmation step.
+  The `.cache/sessions.json` file is deleted from disk as part of this
+  request, so even restarting the server will not recover the data.
+</Warning>
+
+### Request
+
+```http
+DELETE /api/telemetry/sessions
+```
+
+No request body or query parameters are accepted.
+
+### Response
+
+#### 200 OK
+
+```json
+{
+  "success": true,
+  "message": "Logs cleared"
+}
+```
+
+<ResponseField name="success" type="boolean">
+  Always `true` on a successful clear.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  A confirmation string: `"Logs cleared"`.
+</ResponseField>
+
+### Example
+
+```bash
+curl -X DELETE http://localhost:3000/api/telemetry/sessions
+```
+
+```json
+{
+  "success": true,
+  "message": "Logs cleared"
+}
+```

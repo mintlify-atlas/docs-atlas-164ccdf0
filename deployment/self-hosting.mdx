@@ -1,0 +1,193 @@
+---
+title: "Self-Hosting Nexxus on Your Own Server"
+sidebarTitle: "Self-Hosting"
+description: "Deploy Nexxus on your own infrastructure with Node.js or Bun. Covers cloning, dependencies, environment setup, production build, and server startup."
+---
+
+Nexxus is fully self-hostable — you run the Express backend and the React SPA on your own machine or VPS without any external platform dependency. The only external service required for AI features is a Gemini API key from Google AI Studio.
+
+## Prerequisites
+
+Before you begin, make sure your system has the following:
+
+- **Node.js 18+** (LTS recommended) — or **Bun** as a drop-in alternative
+- **Git** to clone the repository
+- A **Gemini API key** from [Google AI Studio](https://aistudio.google.com) if you want to enable the AI Chat feature
+
+<Info>
+  Bun can replace Node.js and npm entirely. Every `npm` command in this guide has a `bun` equivalent. See the [Production Build](/deployment/production-build) page for details.
+</Info>
+
+## Deployment Steps
+
+<Steps>
+  ### Clone the repository
+
+  ```bash
+  git clone https://github.com/your-org/nexxus.git
+  cd nexxus
+  ```
+
+  ### Install dependencies
+
+  Install all Node.js dependencies declared in `package.json`:
+
+  <CodeGroup>
+    ```bash npm
+    npm install
+    ```
+
+    ```bash yarn
+    yarn install
+    ```
+
+    ```bash pnpm
+    pnpm install
+    ```
+
+    ```bash bun
+    bun install
+    ```
+  </CodeGroup>
+
+  ### Configure environment variables
+
+  Copy the example environment file and fill in your values:
+
+  ```bash
+  cp .env.example .env
+  ```
+
+  Then open `.env` in your editor and set the variables:
+
+  ```env
+  GEMINI_API_KEY=your_api_key_here
+  APP_URL=https://nexxus.example.com
+  PORT=3000
+  NODE_ENV=production
+  ```
+
+  See the [Environment Variables](/deployment/environment-variables) reference for a full description of each variable.
+
+  ### Build for production
+
+  Run the production build, which compiles both the React SPA and the Express server:
+
+  <CodeGroup>
+    ```bash npm
+    npm run build
+    ```
+
+    ```bash yarn
+    yarn build
+    ```
+
+    ```bash pnpm
+    pnpm run build
+    ```
+
+    ```bash bun
+    bun run build
+    ```
+  </CodeGroup>
+
+  This produces the `dist/` directory containing `index.html`, hashed asset bundles, and `server.cjs`. See the [Production Build](/deployment/production-build) page for a breakdown of the output.
+
+  ### Start the server
+
+  Launch the bundled production server:
+
+  <CodeGroup>
+    ```bash npm
+    npm start
+    ```
+
+    ```bash yarn
+    yarn start
+    ```
+
+    ```bash pnpm
+    pnpm start
+    ```
+
+    ```bash bun
+    bun start
+    ```
+  </CodeGroup>
+
+  The server binds to `0.0.0.0:3000` by default (or whichever `PORT` you configured). You should see:
+
+  ```
+  Nexxus Server running on http://0.0.0.0:3000
+  ```
+
+  ### Verify the health check
+
+  Confirm the server is running correctly by hitting the health endpoint:
+
+  ```bash
+  curl http://localhost:3000/api/health
+  ```
+
+  A successful response looks like:
+
+  ```json
+  { "status": "ok", "timestamp": 1718000000000 }
+  ```
+</Steps>
+
+## Production vs Development Mode
+
+The server automatically detects which mode to run in. It enters **production mode** when either of the following is true:
+
+- `NODE_ENV=production` is set in the environment, **or**
+- `dist/index.html` exists on disk **and** the process was not started via the `dev` script
+
+In production mode, Nexxus serves the pre-built files from the `dist/` directory using `express.static`. In development mode, Vite's dev middleware is mounted directly on the Express app, enabling hot module replacement.
+
+<Warning>
+  Never run `npm run dev` in production. It starts the Vite dev server middleware, which is not optimized for serving real users and exposes the unbuilt source tree.
+</Warning>
+
+## Reverse Proxy (Recommended)
+
+For production deployments you should place Nexxus behind a reverse proxy such as **nginx** to handle SSL/TLS termination, compression, and request buffering.
+
+<Tip>
+  Running Nexxus behind nginx lets you serve it over HTTPS on port 443 while keeping the Node.js process on a non-privileged port. nginx handles certificate renewal (e.g., via Certbot) without touching your app.
+
+  A minimal nginx server block:
+
+  ```nginx
+  server {
+      listen 80;
+      server_name nexxus.example.com;
+
+      location / {
+          proxy_pass         http://localhost:3000;
+          proxy_http_version 1.1;
+          proxy_set_header   Upgrade $http_upgrade;
+          proxy_set_header   Connection 'upgrade';
+          proxy_set_header   Host $host;
+          proxy_set_header   X-Real-IP $remote_addr;
+          proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_cache_bypass $http_upgrade;
+      }
+  }
+  ```
+
+  After creating the config, reload nginx: `sudo nginx -s reload`. Then use Certbot to add HTTPS: `sudo certbot --nginx -d nexxus.example.com`.
+</Tip>
+
+## Cache Directories
+
+On first startup, Nexxus automatically creates two cache paths relative to the working directory:
+
+| Path | Purpose |
+|---|---|
+| `.cache/games/` | Disk cache for game assets proxied from GitLab |
+| `.cache/sessions.json` | Persisted visitor session log (last 500 entries) |
+
+<Note>
+  `.cache/games/` can grow large over time as game assets are downloaded and cached to disk. It is safe to delete this directory at any time to reclaim disk space — assets are transparently re-fetched from the upstream GitLab repository on the next player request.
+</Note>

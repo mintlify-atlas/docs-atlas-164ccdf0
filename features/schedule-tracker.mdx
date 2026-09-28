@@ -1,0 +1,204 @@
+---
+title: "Class Schedule Tracker — Live Bell & Period Countdown"
+sidebarTitle: "Schedule Tracker"
+description: "Track your school schedule with live countdowns to the next class, passing-period timers, bell notifications, and JSON import/export — all stored locally."
+---
+
+The Nexxus Class Schedule Tracker is a fully offline, locally-stored school bell tracker. Add your recurring class periods once and the tracker automatically monitors the current time, highlights your active class, and counts down to the next bell — all in real time, updating every second.
+
+## ClassScheduleItem Type
+
+Each class period is described by the `ClassScheduleItem` interface:
+
+```typescript
+export interface ClassScheduleItem {
+  id: string;
+  name: string;
+  startTime: string; // "HH:MM" in 24-hour format e.g. "08:30"
+  endTime: string;   // "HH:MM" in 24-hour format e.g. "09:25"
+  teacher?: string;
+  room?: string;
+  days: number[];    // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  color?: string;
+  notes?: string;
+}
+```
+
+| Field | Description |
+|---|---|
+| `id` | Auto-generated unique ID (e.g. `cls-1718000000000-ab3f`) |
+| `name` | Class or course title (required) |
+| `startTime` | Period start in 24-hour `"HH:MM"` format |
+| `endTime` | Period end in 24-hour `"HH:MM"` format |
+| `teacher` | Optional instructor name |
+| `room` | Optional room or building number |
+| `days` | Array of day numbers the class recurs on (see below) |
+| `color` | Accent color token for the card (see Color Options) |
+| `notes` | Optional free-text notes or materials reminder |
+
+### Days of the Week
+
+Days are stored as integers, following JavaScript's `Date.getDay()` convention:
+
+| Value | Day |
+|---|---|
+| `0` | Sunday |
+| `1` | Monday |
+| `2` | Tuesday |
+| `3` | Wednesday |
+| `4` | Thursday |
+| `5` | Friday |
+| `6` | Saturday |
+
+A class can recur on any combination of days. Common presets available in the add/edit form:
+
+- **Mon–Fri** → `[1, 2, 3, 4, 5]`
+- **MWF** → `[1, 3, 5]`
+- **TuTh** → `[2, 4]`
+
+### Time Format
+
+All start and end times use 24-hour `"HH:MM"` strings. Internally, a `timeToMinutes()` helper converts these to minutes from midnight for arithmetic comparisons:
+
+```typescript
+function timeToMinutes(timeStr: string): number {
+  const [h, m] = timeStr.split(':').map((s) => parseInt(s, 10));
+  return (h || 0) * 60 + (m || 0);
+}
+```
+
+The display clock supports toggling between **12-hour** (AM/PM) and **24-hour** formats using the button in the toolbar.
+
+### Color Options
+
+Each class can be assigned one of six accent colors, visible on the period card and its progress bar:
+
+| Token | Color |
+|---|---|
+| `cyan` | Cyan |
+| `emerald` | Emerald |
+| `violet` | Violet |
+| `amber` | Amber |
+| `rose` | Rose |
+| `blue` | Blue |
+
+---
+
+## Live Status Tracking
+
+The tracker evaluates the current time every second and displays one of six live status states at the top of the page:
+
+<CardGroup cols={2}>
+  <Card title="Class In Session" icon="circle-play">
+    Shows the active class name, teacher, room, and a live progress bar with a countdown to the period end.
+  </Card>
+  <Card title="Passing Period / Break" icon="hourglass">
+    Shown between two consecutive classes. Displays the next class name and a countdown until it begins.
+  </Card>
+  <Card title="Before School Begins" icon="clock">
+    Shown when the current time is before the first class of the day. Counts down to the first bell.
+  </Card>
+  <Card title="All Classes Completed" icon="circle-check">
+    Shown when the school day has ended. Displays the next scheduled class on an upcoming day.
+  </Card>
+  <Card title="No Classes Today" icon="sparkles">
+    Shown when no classes are scheduled for the current day of the week.
+  </Card>
+  <Card title="Empty Schedule" icon="calendar">
+    Shown when no classes have been added yet. Provides an **Add First Class** shortcut.
+  </Card>
+</CardGroup>
+
+<Note>
+  The live status banner updates every **1 second** via a `setInterval` clock. Progress bars and countdowns are animated with a 1-second CSS transition to appear smooth.
+</Note>
+
+---
+
+## Adding & Managing Classes
+
+<Steps>
+  <Step title="Open the Add Class modal">
+    Click the **Add Class** button in the toolbar (top-right of the schedule page), or click **Add First Class** from the empty-schedule banner.
+  </Step>
+  <Step title="Fill in the required fields">
+    Enter a **Class / Course Name**, **Start Time**, and **End Time**. Select the days the class repeats on using the day-picker grid.
+  </Step>
+  <Step title="Optionally add details">
+    Add a **Room**, **Teacher**, **Accent Color**, and **Notes** to enrich the period card.
+  </Step>
+  <Step title="Save the class">
+    Click **Create Class**. The new period appears immediately in the schedule and persists to `localStorage`.
+  </Step>
+  <Step title="Edit or delete">
+    In Day View, each class card has an **Edit (✏)** button to reopen the form pre-filled, and a **Delete (🗑)** button to remove it after a confirmation prompt.
+  </Step>
+</Steps>
+
+---
+
+## View Modes
+
+<Tabs>
+  <Tab title="Day View">
+    Shows all classes for the selected day, ordered by start time. Each card displays:
+
+    - Period number
+    - Class name with **ACTIVE NOW** / **COMPLETED** status badges
+    - Start/end time and duration in minutes
+    - Room and teacher metadata
+    - Day-of-week indicator pills (Mon–Sun)
+    - Edit and delete controls
+
+    Use the **day pill buttons** (Sun, Mon, Tue…) in the toolbar to switch between days. Today's day is highlighted with a green dot.
+  </Tab>
+  <Tab title="Week View">
+    Displays a 5-column grid for Monday through Friday, plus a two-column weekend row. Each column lists all classes for that day as compact cards showing start time, title, and room. Clicking any card switches to Day View for that day.
+  </Tab>
+</Tabs>
+
+---
+
+## Import & Export
+
+Your schedule can be backed up and restored as a plain JSON file:
+
+<CardGroup cols={2}>
+  <Card title="Export Schedule" icon="download">
+    Click **Export** in the toolbar to download your schedule as `nexxus-schedule-YYYY-MM-DD.json`. The file contains the full `ClassScheduleItem[]` array.
+  </Card>
+  <Card title="Import Schedule" icon="upload">
+    Click **Import** and select a previously exported `.json` file. The current schedule is replaced with the imported data. Invalid files show an error alert.
+  </Card>
+</CardGroup>
+
+<Warning>
+  Importing a schedule **replaces** your current one entirely. Export a backup first if you want to preserve your existing classes.
+</Warning>
+
+---
+
+## Bell Notifications
+
+The tracker uses the browser **Notifications API** to fire a bell alert when a class is about to begin. You may be prompted to grant notification permission the first time.
+
+<Tip>
+  Bell notifications only fire when the Nexxus tab is open. Keep the tab running in the background during the school day to receive alerts without actively watching the screen.
+</Tip>
+
+---
+
+## Persistence
+
+- **Storage key:** `nexxus_class_schedule`
+- **Format:** JSON array of `ClassScheduleItem` objects
+- The schedule survives page refreshes, tab closes, and browser restarts.
+- Classes with IDs starting with `sample-` (legacy placeholder data) are automatically filtered out on load.
+
+---
+
+## localStorage Reference
+
+| Key | Contents |
+|---|---|
+| `nexxus_class_schedule` | JSON array of all `ClassScheduleItem` objects |

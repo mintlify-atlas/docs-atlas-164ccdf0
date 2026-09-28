@@ -1,0 +1,101 @@
+---
+title: "Telemetry API Overview — Nexxus Visitor Tracking"
+sidebarTitle: "Overview"
+description: "A reference overview of Nexxus's five-endpoint Telemetry REST API: session lifecycle, storage model, background cleanup, and the built-in TelemetryClient SDK."
+---
+
+The Nexxus Telemetry API is a lightweight, self-hosted visitor-tracking system built directly into the Express server. It tracks session open and close events, records periodic heartbeats to measure active duration, and gives admins the ability to silently redirect visitors away from a game. All session data is held in an in-memory `Map` for fast reads and flushed asynchronously to `.cache/sessions.json` for persistence across server restarts.
+
+## Base URL
+
+All telemetry endpoints are served from the same origin as the Nexxus application. There is no separate service or subdomain.
+
+```
+http://localhost:3000
+```
+
+In production, replace `localhost:3000` with your deployment domain.
+
+## Authentication
+
+<Note>
+  No authentication is required. All telemetry endpoints are intentionally open.
+  This is by design for a self-hosted platform where the server is operated and
+  controlled by the site owner. If you expose Nexxus publicly, consider placing
+  it behind a reverse proxy (e.g., Nginx) that restricts access to the admin
+  dashboard routes at the network level.
+</Note>
+
+## Storage Model
+
+Sessions are kept in a server-process `Map<string, VisitorSession>`. On every mutating operation the map is serialised and written asynchronously to `.cache/sessions.json`. On startup, that file is replayed into memory — any session that was still marked `online` is automatically transitioned to `closed`, with `closedAt` set to its last recorded heartbeat timestamp.
+
+Only the **most recent 500 sessions** are retained in the persisted file. Older entries are silently dropped from the tail during each write.
+
+## Background Cleanup
+
+A background interval runs **every 10 seconds** and scans all `online` sessions. Any session whose `lastHeartbeat` is more than **25 seconds** in the past is marked `closed`, with `closedAt` set to that final heartbeat timestamp. This handles visitors who navigate away without triggering the `beforeunload` event (e.g., closing a laptop lid, losing connectivity).
+
+## Client SDK
+
+The file `src/utils/telemetry.ts` exports a singleton `TelemetryClient` instance called `telemetry` that manages the full session lifecycle in the browser:
+
+- Calls `POST /api/telemetry/open` once on `init()`, reusing a session ID stored in `sessionStorage` so page refreshes in the same tab do not create duplicate sessions.
+- Sends a `POST /api/telemetry/heartbeat` every **2.5 seconds**, reporting the current game title and checking for kick signals.
+- Listens on both `beforeunload` and `pagehide`, sending `POST /api/telemetry/close` via `navigator.sendBeacon` for maximum reliability during tab closure.
+- Fires a `nexxus:silent-kick` `CustomEvent` on `window` and invokes registered `onKick` callbacks when a kick is detected, without showing any alert or banner to the visitor.
+
+## Endpoints
+
+<CardGroup cols={2}>
+  <Card title="POST /api/telemetry/open" icon="door-open" href="/api/telemetry/open">
+    Register a new visitor session. Called once on page load by the client SDK.
+  </Card>
+  <Card title="POST /api/telemetry/heartbeat" icon="heart-pulse" href="/api/telemetry/heartbeat">
+    Update session activity and check for a pending kick signal.
+  </Card>
+  <Card title="POST /api/telemetry/close" icon="door-closed" href="/api/telemetry/close">
+    Close an active session. Compatible with `navigator.sendBeacon`.
+  </Card>
+  <Card title="GET /api/telemetry/sessions" icon="chart-bar" href="/api/telemetry/sessions">
+    Retrieve all recorded sessions sorted newest-first, plus aggregate stats.
+  </Card>
+  <Card title="DELETE /api/telemetry/sessions" icon="trash" href="/api/telemetry/sessions">
+    Permanently clear all sessions from memory and disk.
+  </Card>
+  <Card title="POST /api/telemetry/kick" icon="ban" href="/api/telemetry/kick">
+    Silently redirect one visitor, all visitors from an IP, or every online visitor.
+  </Card>
+</CardGroup>
+
+## Endpoint Summary Table
+
+| Method   | Path                        | Purpose                                      |
+|----------|-----------------------------|----------------------------------------------|
+| `POST`   | `/api/telemetry/open`       | Register a new visitor session               |
+| `POST`   | `/api/telemetry/heartbeat`  | Update activity timestamp / check for kick   |
+| `POST`   | `/api/telemetry/close`      | Close a session on tab exit                  |
+| `GET`    | `/api/telemetry/sessions`   | List all sessions with aggregate stats       |
+| `DELETE` | `/api/telemetry/sessions`   | Permanently delete all session records       |
+| `POST`   | `/api/telemetry/kick`       | Kick one session, one IP, or all online      |
+
+## VisitorSession Shape
+
+All session-related endpoints work with the following object structure:
+
+| Field              | Type                    | Description                                              |
+|--------------------|-------------------------|----------------------------------------------------------|
+| `id`               | `string`                | Unique session identifier                                |
+| `ip`               | `string`                | Client IP address (resolved server-side)                 |
+| `device`           | `string`                | Device model name, e.g. `"Windows PC"`                   |
+| `browser`          | `string`                | Browser name and version, e.g. `"Chrome 124"`            |
+| `os`               | `string`                | Operating system, e.g. `"Windows 11 / 10"`               |
+| `openedAt`         | `number`                | Session start time as Unix milliseconds                  |
+| `closedAt`         | `number \| null`        | Session end time as Unix milliseconds, or `null`         |
+| `lastHeartbeat`    | `number`                | Most recent heartbeat timestamp as Unix milliseconds     |
+| `durationSeconds`  | `number`                | Total elapsed seconds since `openedAt`                   |
+| `status`           | `'online' \| 'closed'`  | Current session state                                    |
+| `currentGame`      | `string` *(optional)*   | Activity string, e.g. `"Playing 1v1.LOL"`                |
+| `screen`           | `string` *(optional)*   | Screen resolution, e.g. `"1920x1080"`                    |
+| `language`         | `string` *(optional)*   | Browser language tag, e.g. `"en-US"`                     |
+| `kicked`           | `boolean` *(optional)*  | `true` if a kick is pending; cleared on next heartbeat   |
